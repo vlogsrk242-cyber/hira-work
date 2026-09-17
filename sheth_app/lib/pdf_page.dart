@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+
 import 'app_data.dart';
 
 class PdfPage extends StatefulWidget {
@@ -30,30 +31,29 @@ class _PdfPageState extends State<PdfPage> {
 
     return AppData.withdrawals
         .where(
-          (withdrawal) =>
-              withdrawal.worker == selectedWorker,
+          (withdrawal) => withdrawal.worker == selectedWorker,
         )
         .toList();
   }
 
   double get totalDiamonds {
     return workerWorks.fold(
-      0,
-      (sum, item) => sum + item.diamonds,
+      0.0,
+      (sum, work) => sum + work.diamonds,
     );
   }
 
   double get totalWork {
     return workerWorks.fold(
-      0,
-      (sum, item) => sum + item.totalWork,
+      0.0,
+      (sum, work) => sum + work.totalWork,
     );
   }
 
   double get totalWithdrawal {
     return workerWithdrawals.fold(
-      0,
-      (sum, item) => sum + item.amount,
+      0.0,
+      (sum, withdrawal) => sum + withdrawal.amount,
     );
   }
 
@@ -61,11 +61,21 @@ class _PdfPageState extends State<PdfPage> {
     return totalWork - totalWithdrawal;
   }
 
+  String money(double value) {
+    return '₹${value.toStringAsFixed(2)}';
+  }
+
+  bool get hasData {
+    return workerWorks.isNotEmpty ||
+        workerWithdrawals.isNotEmpty;
+  }
+
   Future<pw.Document> createPdf() async {
     final pdf = pw.Document();
 
     pdf.addPage(
       pw.MultiPage(
+        margin: const pw.EdgeInsets.all(24),
         build: (context) {
           final widgets = <pw.Widget>[
             pw.Text(
@@ -75,7 +85,9 @@ class _PdfPageState extends State<PdfPage> {
                 fontWeight: pw.FontWeight.bold,
               ),
             ),
+
             pw.SizedBox(height: 8),
+
             pw.Text(
               'Worker: ${selectedWorker ?? ''}',
               style: pw.TextStyle(
@@ -83,59 +95,98 @@ class _PdfPageState extends State<PdfPage> {
                 fontWeight: pw.FontWeight.bold,
               ),
             ),
+
             pw.SizedBox(height: 20),
-            pw.Table.fromTextArray(
-              headers: [
-                'Date',
-                'Section',
-                'Diamonds',
-                'Rate',
-                'Work',
-              ],
-              data: workerWorks.map((work) {
-                return [
-                  work.date,
-                  work.section,
-                  work.diamonds.toStringAsFixed(0),
-                  'Rs. ${work.rate.toStringAsFixed(2)}',
-                  'Rs. ${work.totalWork.toStringAsFixed(2)}',
-                ];
-              }).toList(),
-            ),
-            pw.SizedBox(height: 20),
-            pw.Text(
-              'Total Diamonds: '
-              '${totalDiamonds.toStringAsFixed(0)}',
-              style: pw.TextStyle(
-                fontSize: 14,
-                fontWeight: pw.FontWeight.bold,
+
+            if (workerWorks.isNotEmpty) ...[
+              pw.Text(
+                'WORK DETAILS',
+                style: pw.TextStyle(
+                  fontSize: 16,
+                  fontWeight: pw.FontWeight.bold,
+                ),
               ),
-            ),
-            pw.SizedBox(height: 6),
-            pw.Text(
-              'Total Work: '
-              'Rs. ${totalWork.toStringAsFixed(2)}',
-              style: pw.TextStyle(
-                fontSize: 14,
-                fontWeight: pw.FontWeight.bold,
+
+              pw.SizedBox(height: 8),
+
+              pw.Table.fromTextArray(
+                headers: const [
+                  'Date',
+                  'Section',
+                  'Diamonds',
+                  'Rate',
+                  'Work',
+                ],
+                data: workerWorks.map((work) {
+                  return [
+                    work.date,
+                    work.section,
+                    work.diamonds.toStringAsFixed(0),
+                    money(work.rate),
+                    money(work.totalWork),
+                  ];
+                }).toList(),
+                headerStyle: pw.TextStyle(
+                  fontWeight: pw.FontWeight.bold,
+                ),
+                cellStyle: const pw.TextStyle(
+                  fontSize: 9,
+                ),
+                cellPadding:
+                    const pw.EdgeInsets.all(5),
               ),
-            ),
-            pw.SizedBox(height: 6),
-            pw.Text(
-              'Total Withdrawal: '
-              'Rs. ${totalWithdrawal.toStringAsFixed(2)}',
-              style: pw.TextStyle(
-                fontSize: 14,
-                fontWeight: pw.FontWeight.bold,
+
+              pw.SizedBox(height: 20),
+            ],
+
+            pw.Container(
+              padding: const pw.EdgeInsets.all(12),
+              decoration: pw.BoxDecoration(
+                border: pw.Border.all(
+                  width: 1,
+                ),
               ),
-            ),
-            pw.SizedBox(height: 6),
-            pw.Text(
-              'Balance: '
-              'Rs. ${balance.toStringAsFixed(2)}',
-              style: pw.TextStyle(
-                fontSize: 16,
-                fontWeight: pw.FontWeight.bold,
+              child: pw.Column(
+                crossAxisAlignment:
+                    pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text(
+                    'SUMMARY',
+                    style: pw.TextStyle(
+                      fontSize: 16,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+
+                  pw.SizedBox(height: 10),
+
+                  pw.Text(
+                    'Total Diamonds: '
+                    '${totalDiamonds.toStringAsFixed(0)}',
+                  ),
+
+                  pw.SizedBox(height: 6),
+
+                  pw.Text(
+                    'Total Work: ${money(totalWork)}',
+                  ),
+
+                  pw.SizedBox(height: 6),
+
+                  pw.Text(
+                    'Total Withdrawal: '
+                    '${money(totalWithdrawal)}',
+                  ),
+
+                  pw.SizedBox(height: 6),
+
+                  pw.Text(
+                    'Balance: ${money(balance)}',
+                    style: pw.TextStyle(
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                ],
               ),
             ),
           ];
@@ -147,7 +198,7 @@ class _PdfPageState extends State<PdfPage> {
 
             widgets.add(
               pw.Text(
-                'Withdrawal Details',
+                'WITHDRAWAL DETAILS',
                 style: pw.TextStyle(
                   fontSize: 16,
                   fontWeight: pw.FontWeight.bold,
@@ -161,22 +212,44 @@ class _PdfPageState extends State<PdfPage> {
 
             widgets.add(
               pw.Table.fromTextArray(
-                headers: [
+                headers: const [
                   'Date',
                   'Section',
                   'Withdrawal',
                 ],
-                data: workerWithdrawals.map((withdrawal) {
-                  return [
-                    withdrawal.date,
-                    withdrawal.section,
-                    'Rs. '
-                        '${withdrawal.amount.toStringAsFixed(2)}',
-                  ];
-                }).toList(),
+                data: workerWithdrawals.map(
+                  (withdrawal) {
+                    return [
+                      withdrawal.date,
+                      withdrawal.section,
+                      money(withdrawal.amount),
+                    ];
+                  },
+                ).toList(),
+                headerStyle: pw.TextStyle(
+                  fontWeight: pw.FontWeight.bold,
+                ),
+                cellStyle: const pw.TextStyle(
+                  fontSize: 9,
+                ),
+                cellPadding:
+                    const pw.EdgeInsets.all(5),
               ),
             );
           }
+
+          widgets.add(
+            pw.SizedBox(height: 25),
+          );
+
+          widgets.add(
+            pw.Text(
+              'Generated from Hira Work History',
+              style: const pw.TextStyle(
+                fontSize: 9,
+              ),
+            ),
+          );
 
           return widgets;
         },
@@ -187,25 +260,17 @@ class _PdfPageState extends State<PdfPage> {
   }
 
   Future<bool> validateReport() async {
-    if (selectedWorker == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'પહેલા કારીગર પસંદ કરો',
-          ),
-        ),
+    if (selectedWorker == null ||
+        selectedWorker!.trim().isEmpty) {
+      _showMessage(
+        'પહેલા કારીગર પસંદ કરો',
       );
       return false;
     }
 
-    if (workerWorks.isEmpty &&
-        workerWithdrawals.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'આ કારીગર માટે કોઈ સાચો ડેટા નથી',
-          ),
-        ),
+    if (!hasData) {
+      _showMessage(
+        'આ કારીગર માટે કોઈ સાચો ડેટા નથી',
       );
       return false;
     }
@@ -239,206 +304,274 @@ class _PdfPageState extends State<PdfPage> {
     final pdf = await createPdf();
     final bytes = await pdf.save();
 
-    final safeName =
-        selectedWorker!
-            .replaceAll(' ', '_')
-            .replaceAll('/', '_');
+    final safeWorkerName = selectedWorker!
+        .replaceAll(' ', '_')
+        .replaceAll('/', '_');
 
     await Printing.sharePdf(
       bytes: bytes,
-      filename: '${safeName}_hira_work_report.pdf',
+      filename:
+          '${safeWorkerName}_hira_work_report.pdf',
+    );
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final workerNames = AppData.workers
+        .map((worker) => worker.name)
+        .toList();
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('📄 PDF Report'),
+        title: const Text(
+          '📄 PDF Report',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         centerTitle: true,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            if (AppData.workers.isEmpty)
-              const Card(
-                child: Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Text(
-                    'પહેલા કારીગર ઉમેરો.',
-                    style: TextStyle(
-                      fontSize: 17,
-                    ),
-                  ),
-                ),
-              )
-            else
+
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
+            children: [
               DropdownButtonFormField<String>(
-                value: selectedWorker,
+                value: workerNames.contains(
+                  selectedWorker,
+                )
+                    ? selectedWorker
+                    : null,
                 decoration: const InputDecoration(
                   labelText: 'કારીગર પસંદ કરો',
                   prefixIcon: Icon(Icons.person),
                   border: OutlineInputBorder(),
                 ),
-                items: AppData.workers.map((worker) {
-                  return DropdownMenuItem<String>(
-                    value: worker.name,
-                    child: Text(worker.name),
-                  );
-                }).toList(),
+                items: workerNames.map(
+                  (name) {
+                    return DropdownMenuItem<String>(
+                      value: name,
+                      child: Text(name),
+                    );
+                  },
+                ).toList(),
                 onChanged: (value) {
                   setState(() {
                     selectedWorker = value;
                   });
                 },
               ),
-            const SizedBox(height: 20),
-            if (selectedWorker != null) ...[
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      Text(
-                        selectedWorker!,
-                        style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      _summaryRow(
-                        'કુલ હીરા',
-                        totalDiamonds.toStringAsFixed(0),
-                      ),
-                      _summaryRow(
-                        'કુલ કામ',
-                        '₹ ${totalWork.toStringAsFixed(2)}',
-                      ),
-                      _summaryRow(
-                        'કુલ ઉપાડ',
-                        '₹ ${totalWithdrawal.toStringAsFixed(2)}',
-                      ),
-                      const Divider(),
-                      _summaryRow(
-                        'બાકી રકમ',
-                        '₹ ${balance.toStringAsFixed(2)}',
-                        bold: true,
-                      ),
-                    ],
+
+              if (workerNames.isEmpty) ...[
+                const SizedBox(height: 8),
+                const Text(
+                  'પહેલા કારીગર ઉમેરો.',
+                  style: TextStyle(
+                    color: Colors.red,
                   ),
                 ),
-              ),
+              ],
+
               const SizedBox(height: 20),
-              if (workerWorks.isNotEmpty)
+
+              if (selectedWorker != null) ...[
                 Card(
+                  elevation: 2,
                   child: Padding(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(16),
                     child: Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'કામની વિગતો',
-                          style: TextStyle(
-                            fontSize: 18,
+                        const Icon(
+                          Icons.person,
+                          size: 45,
+                        ),
+
+                        const SizedBox(height: 8),
+
+                        Text(
+                          selectedWorker!,
+                          style: const TextStyle(
+                            fontSize: 22,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        const SizedBox(height: 10),
-                        ...workerWorks.map(
-                          (work) => ListTile(
-                            dense: true,
-                            leading: const Icon(
-                              Icons.diamond,
-                            ),
-                            title: Text(
-                              '${work.date} | ${work.section}',
-                            ),
-                            subtitle: Text(
-                              '${work.diamonds.toStringAsFixed(0)} હીરા × '
-                              '₹${work.rate.toStringAsFixed(2)} = '
-                              '₹${work.totalWork.toStringAsFixed(2)}',
-                            ),
-                          ),
+
+                        const SizedBox(height: 18),
+
+                        _summaryRow(
+                          'કુલ હીરા',
+                          totalDiamonds
+                              .toStringAsFixed(0),
+                        ),
+
+                        _summaryRow(
+                          'કુલ કામ',
+                          money(totalWork),
+                        ),
+
+                        _summaryRow(
+                          'કુલ ઉપાડ',
+                          money(totalWithdrawal),
+                        ),
+
+                        const Divider(),
+
+                        _summaryRow(
+                          'બાકી રકમ',
+                          money(balance),
+                          bold: true,
                         ),
                       ],
                     ),
                   ),
                 ),
-              const SizedBox(height: 12),
-              if (workerWithdrawals.isNotEmpty)
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'ઉપાડની વિગતો',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        ...workerWithdrawals.map(
-                          (withdrawal) => ListTile(
-                            dense: true,
-                            leading: const Icon(
-                              Icons.payments,
-                            ),
-                            title: Text(
-                              '${withdrawal.date} | '
-                              '${withdrawal.section}',
-                            ),
-                            subtitle: Text(
-                              'ઉપાડ: '
-                              '₹${withdrawal.amount.toStringAsFixed(2)}',
-                            ),
-                          ),
-                        ),
-                      ],
+
+                const SizedBox(height: 20),
+
+                if (workerWorks.isNotEmpty)
+                  _buildWorkDetails(),
+
+                if (workerWorks.isNotEmpty)
+                  const SizedBox(height: 12),
+
+                if (workerWithdrawals.isNotEmpty)
+                  _buildWithdrawalDetails(),
+
+                const SizedBox(height: 20),
+
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton.icon(
+                    onPressed: previewPdf,
+                    icon: const Icon(
+                      Icons.picture_as_pdf,
+                    ),
+                    label: const Text(
+                      'PDF બનાવો / Print',
+                      style: TextStyle(
+                        fontSize: 17,
+                      ),
                     ),
                   ),
                 ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton.icon(
-                  onPressed: previewPdf,
-                  icon: const Icon(
-                    Icons.picture_as_pdf,
-                  ),
-                  label: const Text(
-                    'PDF બનાવો / Print',
-                    style: TextStyle(
-                      fontSize: 17,
+
+                const SizedBox(height: 12),
+
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: OutlinedButton.icon(
+                    onPressed: sharePdf,
+                    icon: const Icon(
+                      Icons.share,
+                    ),
+                    label: const Text(
+                      'PDF Share કરો',
+                      style: TextStyle(
+                        fontSize: 17,
+                      ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: OutlinedButton.icon(
-                  onPressed: sharePdf,
-                  icon: const Icon(
-                    Icons.share,
-                  ),
-                  label: const Text(
-                    'PDF Share કરો',
-                    style: TextStyle(
-                      fontSize: 17,
-                    ),
-                  ),
-                ),
-              ),
+              ],
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWorkDetails() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment:
+              CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'કામની વિગતો',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+
+            const SizedBox(height: 10),
+
+            ...workerWorks.map(
+              (work) {
+                return ListTile(
+                  dense: true,
+                  leading: const Icon(
+                    Icons.diamond,
+                  ),
+                  title: Text(
+                    '${work.date} | ${work.section}',
+                  ),
+                  subtitle: Text(
+                    '${work.diamonds.toStringAsFixed(0)} '
+                    'હીરા × '
+                    '₹${work.rate.toStringAsFixed(2)} = '
+                    '₹${work.totalWork.toStringAsFixed(2)}',
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWithdrawalDetails() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment:
+              CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'ઉપાડની વિગતો',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+
+            const SizedBox(height: 10),
+
+            ...workerWithdrawals.map(
+              (withdrawal) {
+                return ListTile(
+                  dense: true,
+                  leading: const Icon(
+                    Icons.payments,
+                  ),
+                  title: Text(
+                    '${withdrawal.date} | '
+                    '${withdrawal.section}',
+                  ),
+                  subtitle: Text(
+                    'ઉપાડ: '
+                    '₹${withdrawal.amount.toStringAsFixed(2)}',
+                  ),
+                );
+              },
+            ),
           ],
         ),
       ),
