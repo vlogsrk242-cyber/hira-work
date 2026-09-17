@@ -1,4 +1,3 @@
-```dart
 import 'package:flutter/material.dart';
 import 'dashboard_page.dart';
 
@@ -68,9 +67,7 @@ class _OtpPageState extends State<OtpPage> {
                   Icons.verified_user,
                   size: 80,
                 ),
-
                 const SizedBox(height: 20),
-
                 const Text(
                   'OTP Verification',
                   style: TextStyle(
@@ -78,19 +75,12 @@ class _OtpPageState extends State<OtpPage> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-
                 const SizedBox(height: 12),
-
                 Text(
                   'OTP ${widget.mobile} પર મોકલવામાં આવ્યો છે',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 16,
-                  ),
                 ),
-
                 const SizedBox(height: 30),
-
                 TextField(
                   controller: otpController,
                   keyboardType: TextInputType.number,
@@ -103,9 +93,7 @@ class _OtpPageState extends State<OtpPage> {
                     border: OutlineInputBorder(),
                   ),
                 ),
-
                 const SizedBox(height: 20),
-
                 SizedBox(
                   width: double.infinity,
                   height: 52,
@@ -120,14 +108,10 @@ class _OtpPageState extends State<OtpPage> {
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 15),
-
                 TextButton(
                   onPressed: resendOtp,
-                  child: const Text(
-                    'OTP ફરી મોકલો',
-                  ),
+                  child: const Text('OTP ફરી મોકલો'),
                 ),
               ],
             ),
@@ -137,4 +121,3 @@ class _OtpPageState extends State<OtpPage> {
     );
   }
 }
-```
