@@ -1,4 +1,6 @@
+```dart
 import 'package:flutter/material.dart';
+import 'otp_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -9,12 +11,6 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   final TextEditingController mobileController = TextEditingController();
-
-  @override
-  void dispose() {
-    mobileController.dispose();
-    super.dispose();
-  }
 
   void sendOtp() {
     final mobile = mobileController.text.trim();
@@ -28,11 +24,20 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('OTP Verification પછી Firebase સાથે જોડાશે'),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => OtpPage(
+          mobile: mobile,
+        ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    mobileController.dispose();
+    super.dispose();
   }
 
   @override
@@ -48,6 +53,7 @@ class _LoginPageState extends State<LoginPage> {
                   Icons.diamond,
                   size: 80,
                 ),
+
                 const SizedBox(height: 20),
 
                 const Text(
@@ -90,7 +96,9 @@ class _LoginPageState extends State<LoginPage> {
                     onPressed: sendOtp,
                     child: const Text(
                       'OTP મોકલો',
-                      style: TextStyle(fontSize: 17),
+                      style: TextStyle(
+                        fontSize: 17,
+                      ),
                     ),
                   ),
                 ),
@@ -102,3 +110,4 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 }
+```
