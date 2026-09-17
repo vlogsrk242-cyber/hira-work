@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'otp_page.dart';
+import 'dashboard_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -50,10 +51,7 @@ class _LoginPageState extends State<LoginPage> {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (_) => const OtpPage(
-                  mobile: '',
-                  verificationId: '',
-                ),
+                builder: (_) => const DashboardPage(),
               ),
             );
           } on FirebaseAuthException catch (e) {
@@ -107,13 +105,7 @@ class _LoginPageState extends State<LoginPage> {
           );
         },
 
-        codeAutoRetrievalTimeout: (String verificationId) {
-          if (!mounted) return;
-
-          setState(() {
-            isLoading = false;
-          });
-        },
+        codeAutoRetrievalTimeout: (String verificationId) {},
 
         timeout: const Duration(seconds: 60),
       );
