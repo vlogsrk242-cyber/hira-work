@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 import 'dashboard_page.dart';
 
 class OtpPage extends StatefulWidget {
   final String mobile;
+  final String verificationId;
 
   const OtpPage({
     super.key,
     required this.mobile,
+    required this.verificationId,
   });
 
   @override
@@ -16,7 +20,9 @@ class OtpPage extends StatefulWidget {
 class _OtpPageState extends State<OtpPage> {
   final TextEditingController otpController = TextEditingController();
 
-  void verifyOtp() {
+  bool isLoading = false;
+
+  Future<void> verifyOtp() async {
     final otp = otpController.text.trim();
 
     if (otp.length != 6) {
@@ -28,20 +34,57 @@ class _OtpPageState extends State<OtpPage> {
       return;
     }
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const DashboardPage(),
-      ),
-    );
-  }
+    setState(() {
+      isLoading = true;
+    });
 
-  void resendOtp() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('OTP ફરી મોકલવામાં આવશે'),
-      ),
-    );
+    try {
+      final credential = PhoneAuthProvider.credential(
+        verificationId: widget.verificationId,
+        smsCode: otp,
+      );
+
+      await FirebaseAuth.instance.signInWithCredential(credential);
+
+      if (!mounted) return;
+
+      setState(() {
+        isLoading = false;
+      });
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const DashboardPage(),
+        ),
+      );
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        isLoading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            e.message ?? 'OTP verify કરવામાં ભૂલ આવી',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        isLoading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('OTP verify કરવામાં ભૂલ આવી'),
+        ),
+      );
+    }
   }
 
   @override
@@ -98,20 +141,23 @@ class _OtpPageState extends State<OtpPage> {
                   width: double.infinity,
                   height: 52,
                   child: ElevatedButton(
-                    onPressed: verifyOtp,
-                    child: const Text(
-                      'Verify OTP',
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    onPressed: isLoading ? null : verifyOtp,
+                    child: isLoading
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Text(
+                            'Verify OTP',
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                   ),
-                ),
-                const SizedBox(height: 15),
-                TextButton(
-                  onPressed: resendOtp,
-                  child: const Text('OTP ફરી મોકલો'),
                 ),
               ],
             ),
