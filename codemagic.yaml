@@ -51,6 +51,16 @@ workflows:
           cd sheth_app
           flutter pub get
 
+      - name: Get SHA-1
+        script: |
+          cd sheth_app
+          flutter build apk --debug
+          keytool -list -v \
+            -keystore ~/.android/debug.keystore \
+            -alias androiddebugkey \
+            -storepass android \
+            -keypass android | grep "SHA1:"
+
       - name: Build Android APK
         script: |
           cd sheth_app
