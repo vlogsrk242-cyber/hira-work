@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
@@ -71,7 +72,18 @@ class _PdfPageState extends State<PdfPage> {
   }
 
   Future<pw.Document> createPdf() async {
-    final pdf = pw.Document();
+    final fontData = await rootBundle.load(
+      'assets/NotoSansGujarati-Regular.ttf',
+    );
+
+    final gujaratiFont = pw.Font.ttf(fontData);
+
+    final pdf = pw.Document(
+      theme: pw.ThemeData.withFont(
+        base: gujaratiFont,
+        bold: gujaratiFont,
+      ),
+    );
 
     pdf.addPage(
       pw.MultiPage(
@@ -79,7 +91,7 @@ class _PdfPageState extends State<PdfPage> {
         build: (context) {
           final widgets = <pw.Widget>[
             pw.Text(
-              'HIRA WORK HISTORY',
+              'હીરા કામ હિસ્ટરી',
               style: pw.TextStyle(
                 fontSize: 24,
                 fontWeight: pw.FontWeight.bold,
@@ -89,7 +101,7 @@ class _PdfPageState extends State<PdfPage> {
             pw.SizedBox(height: 8),
 
             pw.Text(
-              'Worker: ${selectedWorker ?? ''}',
+              'કારીગર: ${selectedWorker ?? ''}',
               style: pw.TextStyle(
                 fontSize: 16,
                 fontWeight: pw.FontWeight.bold,
@@ -100,7 +112,7 @@ class _PdfPageState extends State<PdfPage> {
 
             if (workerWorks.isNotEmpty) ...[
               pw.Text(
-                'WORK DETAILS',
+                'કામની વિગતો',
                 style: pw.TextStyle(
                   fontSize: 16,
                   fontWeight: pw.FontWeight.bold,
@@ -111,11 +123,11 @@ class _PdfPageState extends State<PdfPage> {
 
               pw.Table.fromTextArray(
                 headers: const [
-                  'Date',
-                  'Section',
-                  'Diamonds',
-                  'Rate',
-                  'Work',
+                  'તારીખ',
+                  'વિભાગ',
+                  'હીરા',
+                  'ભાવ',
+                  'કામ',
                 ],
                 data: workerWorks.map((work) {
                   return [
@@ -151,7 +163,7 @@ class _PdfPageState extends State<PdfPage> {
                     pw.CrossAxisAlignment.start,
                 children: [
                   pw.Text(
-                    'SUMMARY',
+                    'સારાંશ',
                     style: pw.TextStyle(
                       fontSize: 16,
                       fontWeight: pw.FontWeight.bold,
@@ -161,27 +173,27 @@ class _PdfPageState extends State<PdfPage> {
                   pw.SizedBox(height: 10),
 
                   pw.Text(
-                    'Total Diamonds: '
+                    'કુલ હીરા: '
                     '${totalDiamonds.toStringAsFixed(0)}',
                   ),
 
                   pw.SizedBox(height: 6),
 
                   pw.Text(
-                    'Total Work: ${money(totalWork)}',
+                    'કુલ કામ: ${money(totalWork)}',
                   ),
 
                   pw.SizedBox(height: 6),
 
                   pw.Text(
-                    'Total Withdrawal: '
+                    'કુલ ઉપાડ: '
                     '${money(totalWithdrawal)}',
                   ),
 
                   pw.SizedBox(height: 6),
 
                   pw.Text(
-                    'Balance: ${money(balance)}',
+                    'બાકી રકમ: ${money(balance)}',
                     style: pw.TextStyle(
                       fontWeight: pw.FontWeight.bold,
                     ),
@@ -198,7 +210,7 @@ class _PdfPageState extends State<PdfPage> {
 
             widgets.add(
               pw.Text(
-                'WITHDRAWAL DETAILS',
+                'ઉપાડની વિગતો',
                 style: pw.TextStyle(
                   fontSize: 16,
                   fontWeight: pw.FontWeight.bold,
@@ -213,9 +225,9 @@ class _PdfPageState extends State<PdfPage> {
             widgets.add(
               pw.Table.fromTextArray(
                 headers: const [
-                  'Date',
-                  'Section',
-                  'Withdrawal',
+                  'તારીખ',
+                  'વિભાગ',
+                  'ઉપાડ',
                 ],
                 data: workerWithdrawals.map(
                   (withdrawal) {
@@ -244,7 +256,7 @@ class _PdfPageState extends State<PdfPage> {
 
           widgets.add(
             pw.Text(
-              'Generated from Hira Work History',
+              'હીરા કામ હિસ્ટરી',
               style: const pw.TextStyle(
                 fontSize: 9,
               ),
@@ -339,7 +351,6 @@ class _PdfPageState extends State<PdfPage> {
         ),
         centerTitle: true,
       ),
-
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
@@ -411,8 +422,7 @@ class _PdfPageState extends State<PdfPage> {
 
                         _summaryRow(
                           'કુલ હીરા',
-                          totalDiamonds
-                              .toStringAsFixed(0),
+                          totalDiamonds.toStringAsFixed(0),
                         ),
 
                         _summaryRow(
