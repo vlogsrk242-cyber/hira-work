@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-
+import 'login_page.dart';
 void main() {
   runApp(const HiraWorkShethApp());
 }
@@ -16,7 +16,7 @@ class HiraWorkShethApp extends StatelessWidget {
         useMaterial3: true,
         colorSchemeSeed: Colors.blue,
       ),
-      home: const HomePage(),
+      home: const LoginPage(),
     );
   }
 }
