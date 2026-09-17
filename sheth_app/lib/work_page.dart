@@ -1,5 +1,6 @@
 ```dart
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 class WorkEntry {
   String section;
@@ -35,14 +36,45 @@ class _WorkPageState extends State<WorkPage> {
     'મથાળા',
   ];
 
+  Future<void> selectDate(
+    BuildContext context,
+    TextEditingController controller,
+  ) async {
+    DateTime initialDate = DateTime.now();
+
+    if (controller.text.isNotEmpty) {
+      try {
+        initialDate =
+            DateFormat('dd-MM-yyyy').parse(controller.text);
+      } catch (_) {}
+    }
+
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+      helpText: 'તારીખ પસંદ કરો',
+      cancelText: 'રદ કરો',
+      confirmText: 'પસંદ કરો',
+    );
+
+    if (picked != null) {
+      controller.text =
+          DateFormat('dd-MM-yyyy').format(picked);
+    }
+  }
+
   void showWorkForm({
     WorkEntry? entry,
     int? index,
   }) {
-    String selectedSection = entry?.section ?? sections.first;
+    String selectedSection =
+        entry?.section ?? sections.first;
 
     final dateController = TextEditingController(
-      text: entry?.date ?? '',
+      text: entry?.date ??
+          DateFormat('dd-MM-yyyy').format(DateTime.now()),
     );
 
     final workerController = TextEditingController(
@@ -62,17 +94,19 @@ class _WorkPageState extends State<WorkPage> {
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            double diamonds =
+            final diamonds =
                 double.tryParse(diamondsController.text) ?? 0;
 
-            double rate =
+            final rate =
                 double.tryParse(rateController.text) ?? 0;
 
-            double total = diamonds * rate;
+            final total = diamonds * rate;
 
             return AlertDialog(
               title: Text(
-                entry == null ? 'કામ ઉમેરો' : 'કામ Edit કરો',
+                entry == null
+                    ? 'કામ ઉમેરો'
+                    : 'કામ Edit કરો',
               ),
               content: SingleChildScrollView(
                 child: Column(
@@ -83,6 +117,7 @@ class _WorkPageState extends State<WorkPage> {
                       decoration: const InputDecoration(
                         labelText: 'વિભાગ',
                         prefixIcon: Icon(Icons.category),
+                        border: OutlineInputBorder(),
                       ),
                       items: sections.map((section) {
                         return DropdownMenuItem(
@@ -103,12 +138,22 @@ class _WorkPageState extends State<WorkPage> {
 
                     TextField(
                       controller: dateController,
-                      keyboardType: TextInputType.datetime,
+                      readOnly: true,
                       decoration: const InputDecoration(
                         labelText: 'તારીખ',
-                        hintText: '15-09-2026',
-                        prefixIcon: Icon(Icons.calendar_today),
+                        hintText: 'તારીખ પસંદ કરો',
+                        prefixIcon:
+                            Icon(Icons.calendar_month),
+                        border: OutlineInputBorder(),
                       ),
+                      onTap: () async {
+                        await selectDate(
+                          context,
+                          dateController,
+                        );
+
+                        setDialogState(() {});
+                      },
                     ),
 
                     const SizedBox(height: 12),
@@ -118,6 +163,7 @@ class _WorkPageState extends State<WorkPage> {
                       decoration: const InputDecoration(
                         labelText: 'કારીગર',
                         prefixIcon: Icon(Icons.person),
+                        border: OutlineInputBorder(),
                       ),
                     ),
 
@@ -132,6 +178,7 @@ class _WorkPageState extends State<WorkPage> {
                       decoration: const InputDecoration(
                         labelText: 'હીરા',
                         prefixIcon: Icon(Icons.diamond),
+                        border: OutlineInputBorder(),
                       ),
                       onChanged: (_) {
                         setDialogState(() {});
@@ -148,7 +195,9 @@ class _WorkPageState extends State<WorkPage> {
                       ),
                       decoration: const InputDecoration(
                         labelText: 'ભાવ',
-                        prefixIcon: Icon(Icons.currency_rupee),
+                        prefixIcon:
+                            Icon(Icons.currency_rupee),
+                        border: OutlineInputBorder(),
                       ),
                       onChanged: (_) {
                         setDialogState(() {});
@@ -161,11 +210,12 @@ class _WorkPageState extends State<WorkPage> {
                       width: double.infinity,
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius:
+                            BorderRadius.circular(10),
                         color: Colors.grey.shade200,
                       ),
                       child: Text(
-                        'ટોટલ કામ = ${total.toStringAsFixed(2)}',
+                        'ટોટલ કામ = ₹${total.toStringAsFixed(2)}',
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -186,7 +236,8 @@ class _WorkPageState extends State<WorkPage> {
                   onPressed: () {
                     final diamonds =
                         double.tryParse(
-                              diamondsController.text.trim(),
+                              diamondsController.text
+                                  .trim(),
                             ) ??
                             0;
 
@@ -196,11 +247,13 @@ class _WorkPageState extends State<WorkPage> {
                             ) ??
                             0;
 
-                    if (dateController.text.trim().isEmpty ||
-                        workerController.text.trim().isEmpty ||
+                    if (workerController.text
+                            .trim()
+                            .isEmpty ||
                         diamonds <= 0 ||
                         rate <= 0) {
-                      ScaffoldMessenger.of(context).showSnackBar(
+                      ScaffoldMessenger.of(context)
+                          .showSnackBar(
                         const SnackBar(
                           content: Text(
                             'બધી માહિતી યોગ્ય રીતે ભરો',
@@ -291,7 +344,6 @@ class _WorkPageState extends State<WorkPage> {
         title: const Text('💼 કામ'),
         centerTitle: true,
       ),
-
       body: Column(
         children: [
           Card(
@@ -397,7 +449,6 @@ class _WorkPageState extends State<WorkPage> {
           ),
         ],
       ),
-
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           showWorkForm();
@@ -409,23 +460,3 @@ class _WorkPageState extends State<WorkPage> {
   }
 }
 ```
-
-પછી **Commit changes** દબાવો.
-
-આમાં હાલ:
-
-* **તળીયા / પેલ / મથાળા**
-* તારીખ
-* કારીગર
-* હીરા
-* ભાવ
-* `હીરા × ભાવ = ટોટલ કામ`
-* Save
-* Edit
-* Delete
-* Total હીરા
-* Total કામ
-
-બધું તૈયાર છે.
-
-**`work_page.dart` commit થઈ જાય પછી `STEP 10 OK` લખો.**
