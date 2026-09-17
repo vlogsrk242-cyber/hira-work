@@ -16,63 +16,29 @@ class _WithdrawalPageState extends State<WithdrawalPage> {
     'મથાળા',
   ];
 
-  Future<void> selectDate(
-    BuildContext context,
-    TextEditingController controller,
-  ) async {
-    DateTime initialDate = DateTime.now();
-
-    if (controller.text.isNotEmpty) {
-      try {
-        initialDate =
-            DateFormat('dd-MM-yyyy').parse(controller.text);
-      } catch (_) {}
-    }
-
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: initialDate,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2100),
-      helpText: 'તારીખ પસંદ કરો',
-      cancelText: 'રદ કરો',
-      confirmText: 'પસંદ કરો',
-    );
-
-    if (picked != null) {
-      controller.text =
-          DateFormat('dd-MM-yyyy').format(picked);
-    }
-  }
-
   void showWithdrawalForm({
-    WithdrawalData? entry,
+    WithdrawalData? withdrawal,
     int? index,
   }) {
-    if (AppData.workers.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'પહેલા કારીગર ઉમેરો',
-          ),
-        ),
-      );
-      return;
-    }
-
     String selectedSection =
-        entry?.section ?? sections.first;
+        withdrawal?.section ?? sections.first;
 
     String selectedWorker =
-        entry?.worker ?? AppData.workers.first.name;
+        withdrawal?.worker ??
+        (AppData.workers.isNotEmpty
+            ? AppData.workers.first.name
+            : '');
 
-    final dateController = TextEditingController(
-      text: entry?.date ??
-          DateFormat('dd-MM-yyyy').format(DateTime.now()),
-    );
+    DateTime selectedDate =
+        withdrawal != null
+            ? DateFormat('dd-MM-yyyy')
+                .parse(withdrawal.date)
+            : DateTime.now();
 
     final amountController = TextEditingController(
-      text: entry == null ? '' : entry.amount.toString(),
+      text: withdrawal != null
+          ? withdrawal.amount.toString()
+          : '',
     );
 
     showDialog(
@@ -82,7 +48,7 @@ class _WithdrawalPageState extends State<WithdrawalPage> {
           builder: (context, setDialogState) {
             return AlertDialog(
               title: Text(
-                entry == null
+                withdrawal == null
                     ? 'ઉપાડ ઉમેરો'
                     : 'ઉપાડ Edit કરો',
               ),
@@ -94,7 +60,8 @@ class _WithdrawalPageState extends State<WithdrawalPage> {
                       value: selectedSection,
                       decoration: const InputDecoration(
                         labelText: 'વિભાગ',
-                        prefixIcon: Icon(Icons.category),
+                        prefixIcon:
+                            Icon(Icons.category),
                         border: OutlineInputBorder(),
                       ),
                       items: sections.map((section) {
@@ -111,51 +78,82 @@ class _WithdrawalPageState extends State<WithdrawalPage> {
                         }
                       },
                     ),
-
                     const SizedBox(height: 12),
 
-                    TextField(
-                      controller: dateController,
-                      readOnly: true,
-                      decoration: const InputDecoration(
-                        labelText: 'તારીખ',
-                        prefixIcon:
-                            Icon(Icons.calendar_today),
-                        border: OutlineInputBorder(),
-                      ),
+                    InkWell(
                       onTap: () async {
-                        await selectDate(
-                          context,
-                          dateController,
+                        final picked =
+                            await showDatePicker(
+                          context: context,
+                          initialDate: selectedDate,
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime(2100),
                         );
-                        setDialogState(() {});
-                      },
-                    ),
 
-                    const SizedBox(height: 12),
-
-                    DropdownButtonFormField<String>(
-                      value: selectedWorker,
-                      decoration: const InputDecoration(
-                        labelText: 'કારીગર',
-                        prefixIcon: Icon(Icons.person),
-                        border: OutlineInputBorder(),
-                      ),
-                      items: AppData.workers.map((worker) {
-                        return DropdownMenuItem<String>(
-                          value: worker.name,
-                          child: Text(worker.name),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        if (value != null) {
+                        if (picked != null) {
                           setDialogState(() {
-                            selectedWorker = value;
+                            selectedDate = picked;
                           });
                         }
                       },
+                      child: InputDecorator(
+                        decoration:
+                            const InputDecoration(
+                          labelText: 'તારીખ',
+                          prefixIcon: Icon(
+                            Icons.calendar_month,
+                          ),
+                          border:
+                              OutlineInputBorder(),
+                        ),
+                        child: Text(
+                          DateFormat('dd-MM-yyyy')
+                              .format(selectedDate),
+                        ),
+                      ),
                     ),
+                    const SizedBox(height: 12),
 
+                    if (AppData.workers.isEmpty)
+                      const Align(
+                        alignment:
+                            Alignment.centerLeft,
+                        child: Text(
+                          'પહેલા કારીગર ઉમેરો',
+                          style: TextStyle(
+                            color: Colors.red,
+                          ),
+                        ),
+                      )
+                    else
+                      DropdownButtonFormField<String>(
+                        value: selectedWorker,
+                        decoration:
+                            const InputDecoration(
+                          labelText: 'કારીગર',
+                          prefixIcon:
+                              Icon(Icons.person),
+                          border:
+                              OutlineInputBorder(),
+                        ),
+                        items: AppData.workers.map(
+                          (worker) {
+                            return DropdownMenuItem<
+                                String>(
+                              value: worker.name,
+                              child:
+                                  Text(worker.name),
+                            );
+                          },
+                        ).toList(),
+                        onChanged: (value) {
+                          if (value != null) {
+                            setDialogState(() {
+                              selectedWorker = value;
+                            });
+                          }
+                        },
+                      ),
                     const SizedBox(height: 12),
 
                     TextField(
@@ -164,12 +162,14 @@ class _WithdrawalPageState extends State<WithdrawalPage> {
                           const TextInputType.numberWithOptions(
                         decimal: true,
                       ),
-                      decoration: const InputDecoration(
+                      decoration:
+                          const InputDecoration(
                         labelText: 'ઉપાડની રકમ',
-                        hintText: '₹ 500',
-                        prefixIcon:
-                            Icon(Icons.currency_rupee),
-                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(
+                          Icons.currency_rupee,
+                        ),
+                        border:
+                            OutlineInputBorder(),
                       ),
                     ),
                   ],
@@ -186,36 +186,51 @@ class _WithdrawalPageState extends State<WithdrawalPage> {
                   onPressed: () {
                     final amount =
                         double.tryParse(
-                              amountController.text.trim(),
-                            ) ??
-                            0;
+                      amountController.text.trim(),
+                    );
 
-                    if (dateController.text.trim().isEmpty ||
-                        amount <= 0) {
+                    if (AppData.workers.isEmpty) {
                       ScaffoldMessenger.of(context)
                           .showSnackBar(
                         const SnackBar(
                           content: Text(
-                            'બધી માહિતી યોગ્ય રીતે ભરો',
+                            'પહેલા કારીગર ઉમેરો',
                           ),
                         ),
                       );
                       return;
                     }
 
-                    final newEntry = WithdrawalData(
+                    if (amount == null ||
+                        amount <= 0) {
+                      ScaffoldMessenger.of(context)
+                          .showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'ઉપાડની રકમ સાચી નાખો',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+
+                    final newWithdrawal =
+                        WithdrawalData(
                       section: selectedSection,
-                      date: dateController.text.trim(),
+                      date: DateFormat(
+                        'dd-MM-yyyy',
+                      ).format(selectedDate),
                       worker: selectedWorker,
                       amount: amount,
                     );
 
                     setState(() {
-                      if (entry == null) {
-                        AppData.withdrawals.add(newEntry);
+                      if (withdrawal == null) {
+                        AppData.withdrawals
+                            .add(newWithdrawal);
                       } else {
                         AppData.withdrawals[index!] =
-                            newEntry;
+                            newWithdrawal;
                       }
                     });
 
@@ -232,7 +247,8 @@ class _WithdrawalPageState extends State<WithdrawalPage> {
   }
 
   void deleteWithdrawal(int index) {
-    final entry = AppData.withdrawals[index];
+    final withdrawal =
+        AppData.withdrawals[index];
 
     showDialog(
       context: context,
@@ -242,7 +258,9 @@ class _WithdrawalPageState extends State<WithdrawalPage> {
             'ઉપાડ Delete કરો?',
           ),
           content: Text(
-            'શું તમે ${entry.worker} નો ₹${entry.amount.toStringAsFixed(2)} નો ઉપાડ Delete કરવા માંગો છો?',
+            'શું તમે ${withdrawal.worker} નો '
+            '₹ ${withdrawal.amount.toStringAsFixed(2)} '
+            'ઉપાડ Delete કરવા માંગો છો?',
           ),
           actions: [
             TextButton(
@@ -254,7 +272,8 @@ class _WithdrawalPageState extends State<WithdrawalPage> {
             ElevatedButton(
               onPressed: () {
                 setState(() {
-                  AppData.withdrawals.removeAt(index);
+                  AppData.withdrawals
+                      .removeAt(index);
                 });
 
                 Navigator.pop(dialogContext);
@@ -281,114 +300,114 @@ class _WithdrawalPageState extends State<WithdrawalPage> {
         title: const Text('💰 ઉપાડ'),
         centerTitle: true,
       ),
-      body: Column(
-        children: [
-          Card(
-            margin: const EdgeInsets.all(12),
+      body: AppData.withdrawals.isEmpty
+          ? const Center(
+              child: Text(
+                'હજુ કોઈ ઉપાડ ઉમેરાયો નથી',
+                style: TextStyle(fontSize: 17),
+              ),
+            )
+          : ListView.builder(
+              padding:
+                  const EdgeInsets.all(12),
+              itemCount:
+                  AppData.withdrawals.length,
+              itemBuilder:
+                  (context, index) {
+                final withdrawal =
+                    AppData.withdrawals[index];
+
+                return Card(
+                  margin:
+                      const EdgeInsets.only(
+                    bottom: 12,
+                  ),
+                  child: ListTile(
+                    leading:
+                        const CircleAvatar(
+                      child: Icon(
+                        Icons.payments,
+                      ),
+                    ),
+                    title: Text(
+                      withdrawal.worker,
+                      style:
+                          const TextStyle(
+                        fontWeight:
+                            FontWeight.bold,
+                      ),
+                    ),
+                    subtitle: Text(
+                      'વિભાગ: '
+                      '${withdrawal.section}\n'
+                      'તારીખ: '
+                      '${withdrawal.date}\n'
+                      'ઉપાડ: ₹ '
+                      '${withdrawal.amount.toStringAsFixed(2)}',
+                    ),
+                    isThreeLine: true,
+                    trailing:
+                        PopupMenuButton<String>(
+                      onSelected: (value) {
+                        if (value == 'edit') {
+                          showWithdrawalForm(
+                            withdrawal:
+                                withdrawal,
+                            index: index,
+                          );
+                        }
+
+                        if (value == 'delete') {
+                          deleteWithdrawal(index);
+                        }
+                      },
+                      itemBuilder:
+                          (context) =>
+                              const [
+                        PopupMenuItem(
+                          value: 'edit',
+                          child: Text('Edit'),
+                        ),
+                        PopupMenuItem(
+                          value: 'delete',
+                          child:
+                              Text('Delete'),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+      floatingActionButton:
+          FloatingActionButton.extended(
+        onPressed: () {
+          showWithdrawalForm();
+        },
+        icon: const Icon(Icons.add),
+        label: const Text('ઉપાડ ઉમેરો'),
+      ),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding:
+              const EdgeInsets.all(12),
+          child: Card(
             child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Row(
-                mainAxisAlignment:
-                    MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.payments,
-                    size: 32,
-                  ),
-                  const SizedBox(width: 12),
-                  Column(
-                    children: [
-                      const Text(
-                        'ટોટલ ઉપાડ',
-                        style: TextStyle(
-                          fontSize: 15,
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-                      Text(
-                        '₹ ${totalWithdrawal.toStringAsFixed(2)}',
-                        style: const TextStyle(
-                          fontSize: 21,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+              padding:
+                  const EdgeInsets.all(16),
+              child: Text(
+                'ટોટલ ઉપાડ: ₹ '
+                '${totalWithdrawal.toStringAsFixed(2)}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight:
+                      FontWeight.bold,
+                ),
               ),
             ),
           ),
-
-          Expanded(
-            child: AppData.withdrawals.isEmpty
-                ? const Center(
-                    child: Text(
-                      'હજુ કોઈ ઉપાડની Entry નથી',
-                      style: TextStyle(fontSize: 17),
-                    ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.all(12),
-                    itemCount:
-                        AppData.withdrawals.length,
-                    itemBuilder: (context, index) {
-                      final entry =
-                          AppData.withdrawals[index];
-
-                      return Card(
-                        child: ListTile(
-                          leading: const CircleAvatar(
-                            child: Icon(Icons.payments),
-                          ),
-                          title: Text(
-                            entry.worker,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          subtitle: Text(
-                            '${entry.date} | ${entry.section}\n'
-                            'ઉપાડ: ₹${entry.amount.toStringAsFixed(2)}',
-                          ),
-                          isThreeLine: true,
-                          trailing:
-                              PopupMenuButton<String>(
-                            onSelected: (value) {
-                              if (value == 'edit') {
-                                showWithdrawalForm(
-                                  entry: entry,
-                                  index: index,
-                                );
-                              }
-
-                              if (value == 'delete') {
-                                deleteWithdrawal(index);
-                              }
-                            },
-                            itemBuilder: (context) =>
-                                const [
-                              PopupMenuItem(
-                                value: 'edit',
-                                child: Text('Edit'),
-                              ),
-                              PopupMenuItem(
-                                value: 'delete',
-                                child: Text('Delete'),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-          ),
-        ],
-      ),
-      floatingActionButton:
-          FloatingActionButton.extended(
-        onPressed: showWithdrawalForm,
-        icon: const Icon(Icons.add),
-        label: const Text('ઉપાડ ઉમેરો'),
+        ),
       ),
     );
   }
