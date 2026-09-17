@@ -13,7 +13,7 @@ workflows:
       - name: Generate Android project
         script: |
           cd sheth_app
-          flutter create --platforms=android .
+          flutter create --platforms=android --org com.hirawork .
 
           echo "$ANDROID_FIREBASE_JSON" > android/app/google-services.json
 
