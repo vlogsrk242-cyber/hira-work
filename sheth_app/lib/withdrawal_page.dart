@@ -1,19 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-
-class WithdrawalEntry {
-  String section;
-  String date;
-  String worker;
-  double amount;
-
-  WithdrawalEntry({
-    required this.section,
-    required this.date,
-    required this.worker,
-    required this.amount,
-  });
-}
+import 'app_data.dart';
 
 class WithdrawalPage extends StatefulWidget {
   const WithdrawalPage({super.key});
@@ -23,21 +10,10 @@ class WithdrawalPage extends StatefulWidget {
 }
 
 class _WithdrawalPageState extends State<WithdrawalPage> {
-  final List<WithdrawalEntry> withdrawalEntries = [];
-
   final List<String> sections = [
     'તળીયા',
     'પેલ',
     'મથાળા',
-  ];
-
-  // હાલ Demo માટે કારીગરોની યાદી
-  // પછી WorkersPage / Firebaseમાંથી આપમેળે આવશે.
-  final List<String> workers = [
-    'કારીગર પસંદ કરો',
-    'રમેશ',
-    'સુરેશ',
-    'મહેશ',
   ];
 
   Future<void> selectDate(
@@ -53,7 +29,7 @@ class _WithdrawalPageState extends State<WithdrawalPage> {
       } catch (_) {}
     }
 
-    final DateTime? picked = await showDatePicker(
+    final picked = await showDatePicker(
       context: context,
       initialDate: initialDate,
       firstDate: DateTime(2020),
@@ -70,14 +46,25 @@ class _WithdrawalPageState extends State<WithdrawalPage> {
   }
 
   void showWithdrawalForm({
-    WithdrawalEntry? entry,
+    WithdrawalData? entry,
     int? index,
   }) {
+    if (AppData.workers.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'પહેલા કારીગર ઉમેરો',
+          ),
+        ),
+      );
+      return;
+    }
+
     String selectedSection =
         entry?.section ?? sections.first;
 
     String selectedWorker =
-        entry?.worker ?? workers.first;
+        entry?.worker ?? AppData.workers.first.name;
 
     final dateController = TextEditingController(
       text: entry?.date ??
@@ -103,7 +90,6 @@ class _WithdrawalPageState extends State<WithdrawalPage> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // વિભાગ
                     DropdownButtonFormField<String>(
                       value: selectedSection,
                       decoration: const InputDecoration(
@@ -128,13 +114,11 @@ class _WithdrawalPageState extends State<WithdrawalPage> {
 
                     const SizedBox(height: 12),
 
-                    // તારીખ
                     TextField(
                       controller: dateController,
                       readOnly: true,
                       decoration: const InputDecoration(
                         labelText: 'તારીખ',
-                        hintText: 'તારીખ પસંદ કરો',
                         prefixIcon:
                             Icon(Icons.calendar_today),
                         border: OutlineInputBorder(),
@@ -144,14 +128,12 @@ class _WithdrawalPageState extends State<WithdrawalPage> {
                           context,
                           dateController,
                         );
-
                         setDialogState(() {});
                       },
                     ),
 
                     const SizedBox(height: 12),
 
-                    // કારીગર
                     DropdownButtonFormField<String>(
                       value: selectedWorker,
                       decoration: const InputDecoration(
@@ -159,10 +141,10 @@ class _WithdrawalPageState extends State<WithdrawalPage> {
                         prefixIcon: Icon(Icons.person),
                         border: OutlineInputBorder(),
                       ),
-                      items: workers.map((worker) {
+                      items: AppData.workers.map((worker) {
                         return DropdownMenuItem<String>(
-                          value: worker,
-                          child: Text(worker),
+                          value: worker.name,
+                          child: Text(worker.name),
                         );
                       }).toList(),
                       onChanged: (value) {
@@ -176,7 +158,6 @@ class _WithdrawalPageState extends State<WithdrawalPage> {
 
                     const SizedBox(height: 12),
 
-                    // ઉપાડની રકમ
                     TextField(
                       controller: amountController,
                       keyboardType:
@@ -185,7 +166,7 @@ class _WithdrawalPageState extends State<WithdrawalPage> {
                       ),
                       decoration: const InputDecoration(
                         labelText: 'ઉપાડની રકમ',
-                        hintText: '500',
+                        hintText: '₹ 500',
                         prefixIcon:
                             Icon(Icons.currency_rupee),
                         border: OutlineInputBorder(),
@@ -209,11 +190,7 @@ class _WithdrawalPageState extends State<WithdrawalPage> {
                             ) ??
                             0;
 
-                    if (dateController.text
-                            .trim()
-                            .isEmpty ||
-                        selectedWorker ==
-                            'કારીગર પસંદ કરો' ||
+                    if (dateController.text.trim().isEmpty ||
                         amount <= 0) {
                       ScaffoldMessenger.of(context)
                           .showSnackBar(
@@ -226,7 +203,7 @@ class _WithdrawalPageState extends State<WithdrawalPage> {
                       return;
                     }
 
-                    final newEntry = WithdrawalEntry(
+                    final newEntry = WithdrawalData(
                       section: selectedSection,
                       date: dateController.text.trim(),
                       worker: selectedWorker,
@@ -235,9 +212,9 @@ class _WithdrawalPageState extends State<WithdrawalPage> {
 
                     setState(() {
                       if (entry == null) {
-                        withdrawalEntries.add(newEntry);
+                        AppData.withdrawals.add(newEntry);
                       } else {
-                        withdrawalEntries[index!] =
+                        AppData.withdrawals[index!] =
                             newEntry;
                       }
                     });
@@ -255,28 +232,32 @@ class _WithdrawalPageState extends State<WithdrawalPage> {
   }
 
   void deleteWithdrawal(int index) {
+    final entry = AppData.withdrawals[index];
+
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('ઉપાડ Delete કરો?'),
-          content: const Text(
-            'શું તમે આ ઉપાડની Entry Delete કરવા માંગો છો?',
+          title: const Text(
+            'ઉપાડ Delete કરો?',
+          ),
+          content: Text(
+            'શું તમે ${entry.worker} નો ₹${entry.amount.toStringAsFixed(2)} નો ઉપાડ Delete કરવા માંગો છો?',
           ),
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.pop(context);
+                Navigator.pop(dialogContext);
               },
               child: const Text('Cancel'),
             ),
             ElevatedButton(
               onPressed: () {
                 setState(() {
-                  withdrawalEntries.removeAt(index);
+                  AppData.withdrawals.removeAt(index);
                 });
 
-                Navigator.pop(context);
+                Navigator.pop(dialogContext);
               },
               child: const Text('Delete'),
             ),
@@ -287,7 +268,7 @@ class _WithdrawalPageState extends State<WithdrawalPage> {
   }
 
   double get totalWithdrawal {
-    return withdrawalEntries.fold(
+    return AppData.withdrawals.fold(
       0,
       (sum, item) => sum + item.amount,
     );
@@ -302,28 +283,32 @@ class _WithdrawalPageState extends State<WithdrawalPage> {
       ),
       body: Column(
         children: [
-          // Total
           Card(
             margin: const EdgeInsets.all(12),
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(14),
               child: Row(
                 mainAxisAlignment:
                     MainAxisAlignment.center,
                 children: [
                   const Icon(
                     Icons.payments,
-                    size: 35,
+                    size: 32,
                   ),
                   const SizedBox(width: 12),
                   Column(
                     children: [
-                      const Text('ટોટલ ઉપાડ'),
+                      const Text(
+                        'ટોટલ ઉપાડ',
+                        style: TextStyle(
+                          fontSize: 15,
+                        ),
+                      ),
                       const SizedBox(height: 5),
                       Text(
                         '₹ ${totalWithdrawal.toStringAsFixed(2)}',
                         style: const TextStyle(
-                          fontSize: 22,
+                          fontSize: 21,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -335,7 +320,7 @@ class _WithdrawalPageState extends State<WithdrawalPage> {
           ),
 
           Expanded(
-            child: withdrawalEntries.isEmpty
+            child: AppData.withdrawals.isEmpty
                 ? const Center(
                     child: Text(
                       'હજુ કોઈ ઉપાડની Entry નથી',
@@ -344,10 +329,11 @@ class _WithdrawalPageState extends State<WithdrawalPage> {
                   )
                 : ListView.builder(
                     padding: const EdgeInsets.all(12),
-                    itemCount: withdrawalEntries.length,
+                    itemCount:
+                        AppData.withdrawals.length,
                     itemBuilder: (context, index) {
                       final entry =
-                          withdrawalEntries[index];
+                          AppData.withdrawals[index];
 
                       return Card(
                         child: ListTile(
@@ -398,12 +384,9 @@ class _WithdrawalPageState extends State<WithdrawalPage> {
           ),
         ],
       ),
-
       floatingActionButton:
           FloatingActionButton.extended(
-        onPressed: () {
-          showWithdrawalForm();
-        },
+        onPressed: showWithdrawalForm,
         icon: const Icon(Icons.add),
         label: const Text('ઉપાડ ઉમેરો'),
       ),
