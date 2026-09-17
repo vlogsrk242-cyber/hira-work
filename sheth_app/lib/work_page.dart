@@ -1,24 +1,6 @@
-```dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-
-class WorkEntry {
-  String section;
-  String date;
-  String worker;
-  double diamonds;
-  double rate;
-
-  WorkEntry({
-    required this.section,
-    required this.date,
-    required this.worker,
-    required this.diamonds,
-    required this.rate,
-  });
-
-  double get totalWork => diamonds * rate;
-}
+import 'app_data.dart';
 
 class WorkPage extends StatefulWidget {
   const WorkPage({super.key});
@@ -28,65 +10,34 @@ class WorkPage extends StatefulWidget {
 }
 
 class _WorkPageState extends State<WorkPage> {
-  final List<WorkEntry> workEntries = [];
-
   final List<String> sections = [
     'તળીયા',
     'પેલ',
     'મથાળા',
   ];
 
-  Future<void> selectDate(
-    BuildContext context,
-    TextEditingController controller,
-  ) async {
-    DateTime initialDate = DateTime.now();
-
-    if (controller.text.isNotEmpty) {
-      try {
-        initialDate =
-            DateFormat('dd-MM-yyyy').parse(controller.text);
-      } catch (_) {}
-    }
-
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: initialDate,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2100),
-      helpText: 'તારીખ પસંદ કરો',
-      cancelText: 'રદ કરો',
-      confirmText: 'પસંદ કરો',
-    );
-
-    if (picked != null) {
-      controller.text =
-          DateFormat('dd-MM-yyyy').format(picked);
-    }
-  }
-
   void showWorkForm({
-    WorkEntry? entry,
+    WorkData? work,
     int? index,
   }) {
-    String selectedSection =
-        entry?.section ?? sections.first;
+    String selectedSection = work?.section ?? sections.first;
+    String selectedWorker =
+        work?.worker ??
+        (AppData.workers.isNotEmpty
+            ? AppData.workers.first.name
+            : '');
 
-    final dateController = TextEditingController(
-      text: entry?.date ??
-          DateFormat('dd-MM-yyyy').format(DateTime.now()),
-    );
-
-    final workerController = TextEditingController(
-      text: entry?.worker ?? '',
-    );
+    DateTime selectedDate =
+        work != null
+            ? DateFormat('dd-MM-yyyy').parse(work.date)
+            : DateTime.now();
 
     final diamondsController = TextEditingController(
-      text: entry == null ? '' : entry.diamonds.toString(),
+      text: work != null ? work.diamonds.toString() : '',
     );
 
     final rateController = TextEditingController(
-      text: entry == null ? '' : entry.rate.toString(),
+      text: work != null ? work.rate.toString() : '',
     );
 
     showDialog(
@@ -94,19 +45,9 @@ class _WorkPageState extends State<WorkPage> {
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            final diamonds =
-                double.tryParse(diamondsController.text) ?? 0;
-
-            final rate =
-                double.tryParse(rateController.text) ?? 0;
-
-            final total = diamonds * rate;
-
             return AlertDialog(
               title: Text(
-                entry == null
-                    ? 'કામ ઉમેરો'
-                    : 'કામ Edit કરો',
+                work == null ? 'કામ ઉમેરો' : 'કામ Edit કરો',
               ),
               content: SingleChildScrollView(
                 child: Column(
@@ -120,7 +61,7 @@ class _WorkPageState extends State<WorkPage> {
                         border: OutlineInputBorder(),
                       ),
                       items: sections.map((section) {
-                        return DropdownMenuItem(
+                        return DropdownMenuItem<String>(
                           value: section,
                           child: Text(section),
                         );
@@ -133,42 +74,69 @@ class _WorkPageState extends State<WorkPage> {
                         }
                       },
                     ),
-
                     const SizedBox(height: 12),
-
-                    TextField(
-                      controller: dateController,
-                      readOnly: true,
-                      decoration: const InputDecoration(
-                        labelText: 'તારીખ',
-                        hintText: 'તારીખ પસંદ કરો',
-                        prefixIcon:
-                            Icon(Icons.calendar_month),
-                        border: OutlineInputBorder(),
-                      ),
+                    InkWell(
                       onTap: () async {
-                        await selectDate(
-                          context,
-                          dateController,
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: selectedDate,
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime(2100),
                         );
 
-                        setDialogState(() {});
+                        if (picked != null) {
+                          setDialogState(() {
+                            selectedDate = picked;
+                          });
+                        }
                       },
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    TextField(
-                      controller: workerController,
-                      decoration: const InputDecoration(
-                        labelText: 'કારીગર',
-                        prefixIcon: Icon(Icons.person),
-                        border: OutlineInputBorder(),
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'તારીખ',
+                          prefixIcon: Icon(Icons.calendar_month),
+                          border: OutlineInputBorder(),
+                        ),
+                        child: Text(
+                          DateFormat(
+                            'dd-MM-yyyy',
+                          ).format(selectedDate),
+                        ),
                       ),
                     ),
-
                     const SizedBox(height: 12),
-
+                    if (AppData.workers.isEmpty)
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'પહેલા કારીગર ઉમેરો',
+                          style: TextStyle(
+                            color: Colors.red,
+                          ),
+                        ),
+                      )
+                    else
+                      DropdownButtonFormField<String>(
+                        value: selectedWorker,
+                        decoration: const InputDecoration(
+                          labelText: 'કારીગર',
+                          prefixIcon: Icon(Icons.person),
+                          border: OutlineInputBorder(),
+                        ),
+                        items: AppData.workers.map((worker) {
+                          return DropdownMenuItem<String>(
+                            value: worker.name,
+                            child: Text(worker.name),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          if (value != null) {
+                            setDialogState(() {
+                              selectedWorker = value;
+                            });
+                          }
+                        },
+                      ),
+                    const SizedBox(height: 12),
                     TextField(
                       controller: diamondsController,
                       keyboardType:
@@ -180,13 +148,8 @@ class _WorkPageState extends State<WorkPage> {
                         prefixIcon: Icon(Icons.diamond),
                         border: OutlineInputBorder(),
                       ),
-                      onChanged: (_) {
-                        setDialogState(() {});
-                      },
                     ),
-
                     const SizedBox(height: 12),
-
                     TextField(
                       controller: rateController,
                       keyboardType:
@@ -194,33 +157,37 @@ class _WorkPageState extends State<WorkPage> {
                         decimal: true,
                       ),
                       decoration: const InputDecoration(
-                        labelText: 'ભાવ',
-                        prefixIcon:
-                            Icon(Icons.currency_rupee),
+                        labelText: 'Rate',
+                        prefixIcon: Icon(Icons.currency_rupee),
                         border: OutlineInputBorder(),
                       ),
-                      onChanged: (_) {
-                        setDialogState(() {});
-                      },
                     ),
+                    const SizedBox(height: 12),
+                    Builder(
+                      builder: (_) {
+                        final diamonds =
+                            double.tryParse(
+                              diamondsController.text,
+                            ) ??
+                            0;
 
-                    const SizedBox(height: 18),
+                        final rate =
+                            double.tryParse(
+                              rateController.text,
+                            ) ??
+                            0;
 
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        borderRadius:
-                            BorderRadius.circular(10),
-                        color: Colors.grey.shade200,
-                      ),
-                      child: Text(
-                        'ટોટલ કામ = ₹${total.toStringAsFixed(2)}',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                        return Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            'કુલ કામ: ₹ ${(diamonds * rate).toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -234,48 +201,62 @@ class _WorkPageState extends State<WorkPage> {
                 ),
                 ElevatedButton(
                   onPressed: () {
-                    final diamonds =
-                        double.tryParse(
-                              diamondsController.text
-                                  .trim(),
-                            ) ??
-                            0;
+                    final diamonds = double.tryParse(
+                      diamondsController.text.trim(),
+                    );
 
-                    final rate =
-                        double.tryParse(
-                              rateController.text.trim(),
-                            ) ??
-                            0;
+                    final rate = double.tryParse(
+                      rateController.text.trim(),
+                    );
 
-                    if (workerController.text
-                            .trim()
-                            .isEmpty ||
-                        diamonds <= 0 ||
-                        rate <= 0) {
-                      ScaffoldMessenger.of(context)
-                          .showSnackBar(
+                    if (AppData.workers.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text(
-                            'બધી માહિતી યોગ્ય રીતે ભરો',
+                            'પહેલા કારીગર ઉમેરો',
                           ),
                         ),
                       );
                       return;
                     }
 
-                    final newEntry = WorkEntry(
+                    if (diamonds == null || diamonds <= 0) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'હીરાની સંખ્યા સાચી નાખો',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+
+                    if (rate == null || rate < 0) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Rate સાચો નાખો',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+
+                    final newWork = WorkData(
                       section: selectedSection,
-                      date: dateController.text.trim(),
-                      worker: workerController.text.trim(),
+                      date: DateFormat(
+                        'dd-MM-yyyy',
+                      ).format(selectedDate),
+                      worker: selectedWorker,
                       diamonds: diamonds,
                       rate: rate,
                     );
 
                     setState(() {
-                      if (entry == null) {
-                        workEntries.add(newEntry);
+                      if (work == null) {
+                        AppData.works.add(newWork);
                       } else {
-                        workEntries[index!] = newEntry;
+                        AppData.works[index!] = newWork;
                       }
                     });
 
@@ -292,28 +273,30 @@ class _WorkPageState extends State<WorkPage> {
   }
 
   void deleteWork(int index) {
+    final work = AppData.works[index];
+
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
           title: const Text('કામ Delete કરો?'),
-          content: const Text(
-            'શું તમે આ કામની Entry Delete કરવા માંગો છો?',
+          content: Text(
+            'શું તમે ${work.worker} નું કામ Delete કરવા માંગો છો?',
           ),
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.pop(context);
+                Navigator.pop(dialogContext);
               },
               child: const Text('Cancel'),
             ),
             ElevatedButton(
               onPressed: () {
                 setState(() {
-                  workEntries.removeAt(index);
+                  AppData.works.removeAt(index);
                 });
 
-                Navigator.pop(context);
+                Navigator.pop(dialogContext);
               },
               child: const Text('Delete'),
             ),
@@ -324,14 +307,14 @@ class _WorkPageState extends State<WorkPage> {
   }
 
   double get totalDiamonds {
-    return workEntries.fold(
+    return AppData.works.fold(
       0,
       (sum, item) => sum + item.diamonds,
     );
   }
 
   double get totalWork {
-    return workEntries.fold(
+    return AppData.works.fold(
       0,
       (sum, item) => sum + item.totalWork,
     );
@@ -344,111 +327,67 @@ class _WorkPageState extends State<WorkPage> {
         title: const Text('💼 કામ'),
         centerTitle: true,
       ),
-      body: Column(
-        children: [
-          Card(
-            margin: const EdgeInsets.all(12),
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Row(
-                mainAxisAlignment:
-                    MainAxisAlignment.spaceAround,
-                children: [
-                  Column(
-                    children: [
-                      const Text('ટોટલ હીરા'),
-                      const SizedBox(height: 5),
-                      Text(
-                        totalDiamonds.toStringAsFixed(0),
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Column(
-                    children: [
-                      const Text('ટોટલ કામ'),
-                      const SizedBox(height: 5),
-                      Text(
-                        '₹ ${totalWork.toStringAsFixed(2)}',
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+      body: AppData.works.isEmpty
+          ? const Center(
+              child: Text(
+                'હજુ કોઈ કામ ઉમેરાયું નથી',
+                style: TextStyle(fontSize: 17),
               ),
-            ),
-          ),
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.all(12),
+              itemCount: AppData.works.length,
+              itemBuilder: (context, index) {
+                final work = AppData.works[index];
 
-          Expanded(
-            child: workEntries.isEmpty
-                ? const Center(
-                    child: Text(
-                      'હજુ કોઈ કામની Entry નથી',
-                      style: TextStyle(fontSize: 17),
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  child: ListTile(
+                    leading: const CircleAvatar(
+                      child: Icon(Icons.diamond),
                     ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.all(12),
-                    itemCount: workEntries.length,
-                    itemBuilder: (context, index) {
-                      final entry = workEntries[index];
+                    title: Text(
+                      work.worker,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    subtitle: Text(
+                      'વિભાગ: ${work.section}\n'
+                      'તારીખ: ${work.date}\n'
+                      'હીરા: ${work.diamonds.toStringAsFixed(0)}\n'
+                      'Rate: ₹ ${work.rate.toStringAsFixed(2)}\n'
+                      'કુલ: ₹ ${work.totalWork.toStringAsFixed(2)}',
+                    ),
+                    isThreeLine: true,
+                    trailing: PopupMenuButton<String>(
+                      onSelected: (value) {
+                        if (value == 'edit') {
+                          showWorkForm(
+                            work: work,
+                            index: index,
+                          );
+                        }
 
-                      return Card(
-                        child: ListTile(
-                          leading: const CircleAvatar(
-                            child: Icon(Icons.diamond),
-                          ),
-                          title: Text(
-                            entry.worker,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          subtitle: Text(
-                            '${entry.date} | ${entry.section}\n'
-                            '${entry.diamonds} હીરા × '
-                            '₹${entry.rate} = '
-                            '₹${entry.totalWork.toStringAsFixed(2)}',
-                          ),
-                          isThreeLine: true,
-                          trailing:
-                              PopupMenuButton<String>(
-                            onSelected: (value) {
-                              if (value == 'edit') {
-                                showWorkForm(
-                                  entry: entry,
-                                  index: index,
-                                );
-                              }
-
-                              if (value == 'delete') {
-                                deleteWork(index);
-                              }
-                            },
-                            itemBuilder: (context) => const [
-                              PopupMenuItem(
-                                value: 'edit',
-                                child: Text('Edit'),
-                              ),
-                              PopupMenuItem(
-                                value: 'delete',
-                                child: Text('Delete'),
-                              ),
-                            ],
-                          ),
+                        if (value == 'delete') {
+                          deleteWork(index);
+                        }
+                      },
+                      itemBuilder: (context) => const [
+                        PopupMenuItem(
+                          value: 'edit',
+                          child: Text('Edit'),
                         ),
-                      );
-                    },
+                        PopupMenuItem(
+                          value: 'delete',
+                          child: Text('Delete'),
+                        ),
+                      ],
+                    ),
                   ),
-          ),
-        ],
-      ),
+                );
+              },
+            ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           showWorkForm();
@@ -456,7 +395,34 @@ class _WorkPageState extends State<WorkPage> {
         icon: const Icon(Icons.add),
         label: const Text('કામ ઉમેરો'),
       ),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'ટોટલ હીરા: ${totalDiamonds.toStringAsFixed(0)}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'ટોટલ કામ: ₹ ${totalWork.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
-```
