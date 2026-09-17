@@ -1,17 +1,5 @@
-```dart
 import 'package:flutter/material.dart';
-
-class Worker {
-  String name;
-  String mobile;
-  String factoryNumber;
-
-  Worker({
-    required this.name,
-    required this.mobile,
-    required this.factoryNumber,
-  });
-}
+import 'app_data.dart';
 
 class WorkersPage extends StatefulWidget {
   const WorkersPage({super.key});
@@ -21,40 +9,52 @@ class WorkersPage extends StatefulWidget {
 }
 
 class _WorkersPageState extends State<WorkersPage> {
-  final List<Worker> workers = [];
+  void showWorkerForm({
+    WorkerData? worker,
+    int? index,
+  }) {
+    final nameController = TextEditingController(
+      text: worker?.name ?? '',
+    );
 
-  void showWorkerForm({Worker? worker, int? index}) {
-    final nameController =
-        TextEditingController(text: worker?.name ?? '');
-    final mobileController =
-        TextEditingController(text: worker?.mobile ?? '');
-    final factoryController =
-        TextEditingController(text: worker?.factoryNumber ?? '');
+    final mobileController = TextEditingController(
+      text: worker?.mobile ?? '',
+    );
+
+    final factoryController = TextEditingController(
+      text: worker?.factoryNumber ?? '',
+    );
 
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
           title: Text(
-            worker == null ? 'કારીગર ઉમેરો' : 'કારીગર Edit કરો',
+            worker == null
+                ? 'કારીગર ઉમેરો'
+                : 'કારીગર Edit કરો',
           ),
           content: SingleChildScrollView(
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
                   controller: nameController,
                   decoration: const InputDecoration(
                     labelText: 'કારીગરનું નામ',
                     prefixIcon: Icon(Icons.person),
+                    border: OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: mobileController,
                   keyboardType: TextInputType.phone,
+                  maxLength: 10,
                   decoration: const InputDecoration(
                     labelText: 'મોબાઈલ નંબર',
                     prefixIcon: Icon(Icons.phone),
+                    border: OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -63,6 +63,7 @@ class _WorkersPageState extends State<WorkersPage> {
                   decoration: const InputDecoration(
                     labelText: 'કારખાના નંબર',
                     prefixIcon: Icon(Icons.business),
+                    border: OutlineInputBorder(),
                   ),
                 ),
               ],
@@ -71,39 +72,47 @@ class _WorkersPageState extends State<WorkersPage> {
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.pop(context);
+                Navigator.pop(dialogContext);
               },
               child: const Text('Cancel'),
             ),
             ElevatedButton(
               onPressed: () {
-                if (nameController.text.trim().isEmpty ||
-                    mobileController.text.trim().isEmpty ||
-                    factoryController.text.trim().isEmpty) {
+                final name = nameController.text.trim();
+                final mobile = mobileController.text.trim();
+                final factory =
+                    factoryController.text.trim();
+
+                if (name.isEmpty ||
+                    mobile.isEmpty ||
+                    factory.isEmpty) {
+                  ScaffoldMessenger.of(context)
+                      .showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'બધી માહિતી ભરો',
+                      ),
+                    ),
+                  );
                   return;
                 }
 
                 setState(() {
+                  final newWorker = WorkerData(
+                    name: name,
+                    mobile: mobile,
+                    factoryNumber: factory,
+                  );
+
                   if (worker == null) {
-                    workers.add(
-                      Worker(
-                        name: nameController.text.trim(),
-                        mobile: mobileController.text.trim(),
-                        factoryNumber:
-                            factoryController.text.trim(),
-                      ),
-                    );
+                    AppData.workers.add(newWorker);
                   } else {
-                    workers[index!] = Worker(
-                      name: nameController.text.trim(),
-                      mobile: mobileController.text.trim(),
-                      factoryNumber:
-                          factoryController.text.trim(),
-                    );
+                    AppData.workers[index!] =
+                        newWorker;
                   }
                 });
 
-                Navigator.pop(context);
+                Navigator.pop(dialogContext);
               },
               child: const Text('Save'),
             ),
@@ -114,28 +123,32 @@ class _WorkersPageState extends State<WorkersPage> {
   }
 
   void deleteWorker(int index) {
+    final worker = AppData.workers[index];
+
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('કારીગર Delete કરો?'),
-          content: const Text(
-            'શું તમે આ કારીગરને Delete કરવા માંગો છો?',
+          title: const Text(
+            'કારીગર Delete કરો?',
+          ),
+          content: Text(
+            'શું તમે "${worker.name}" ને Delete કરવા માંગો છો?',
           ),
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.pop(context);
+                Navigator.pop(dialogContext);
               },
               child: const Text('Cancel'),
             ),
             ElevatedButton(
               onPressed: () {
                 setState(() {
-                  workers.removeAt(index);
+                  AppData.workers.removeAt(index);
                 });
 
-                Navigator.pop(context);
+                Navigator.pop(dialogContext);
               },
               child: const Text('Delete'),
             ),
@@ -149,10 +162,10 @@ class _WorkersPageState extends State<WorkersPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('કારીગર'),
+        title: const Text('👷 કારીગર'),
         centerTitle: true,
       ),
-      body: workers.isEmpty
+      body: AppData.workers.isEmpty
           ? const Center(
               child: Text(
                 'હજુ કોઈ કારીગર ઉમેરાયો નથી',
@@ -161,9 +174,10 @@ class _WorkersPageState extends State<WorkersPage> {
             )
           : ListView.builder(
               padding: const EdgeInsets.all(12),
-              itemCount: workers.length,
+              itemCount: AppData.workers.length,
               itemBuilder: (context, index) {
-                final worker = workers[index];
+                final worker =
+                    AppData.workers[index];
 
                 return Card(
                   child: ListTile(
@@ -181,7 +195,8 @@ class _WorkersPageState extends State<WorkersPage> {
                       'કારખાના નંબર: ${worker.factoryNumber}',
                     ),
                     isThreeLine: true,
-                    trailing: PopupMenuButton<String>(
+                    trailing:
+                        PopupMenuButton<String>(
                       onSelected: (value) {
                         if (value == 'edit') {
                           showWorkerForm(
@@ -194,7 +209,8 @@ class _WorkersPageState extends State<WorkersPage> {
                           deleteWorker(index);
                         }
                       },
-                      itemBuilder: (context) => const [
+                      itemBuilder: (context) =>
+                          const [
                         PopupMenuItem(
                           value: 'edit',
                           child: Text('Edit'),
@@ -209,7 +225,8 @@ class _WorkersPageState extends State<WorkersPage> {
                 );
               },
             ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton:
+          FloatingActionButton.extended(
         onPressed: () {
           showWorkerForm();
         },
@@ -219,4 +236,3 @@ class _WorkersPageState extends State<WorkersPage> {
     );
   }
 }
-```
