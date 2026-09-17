@@ -6,12 +6,15 @@ workflows:
 
     environment:
       flutter: stable
+      groups:
+        - firebase_credentials
 
     scripts:
       - name: Generate Android project
         script: |
           cd sheth_app
           flutter create --platforms=android .
+          echo "$ANDROID_FIREBASE_JSON" | base64 --decode > android/app/google-services.json
 
       - name: Get Flutter packages
         script: |
