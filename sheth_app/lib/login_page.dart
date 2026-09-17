@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 import 'otp_page.dart';
 
 class LoginPage extends StatefulWidget {
@@ -11,7 +13,9 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final TextEditingController mobileController = TextEditingController();
 
-  void sendOtp() {
+  bool isLoading = false;
+
+  Future<void> sendOtp() async {
     final mobile = mobileController.text.trim();
 
     if (mobile.length != 10) {
@@ -23,14 +27,123 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => OtpPage(
-          mobile: mobile,
+    setState(() {
+      isLoading = true;
+    });
+
+    final phoneNumber = '+91$mobile';
+
+    try {
+      await FirebaseAuth.instance.verifyPhoneNumber(
+        phoneNumber: phoneNumber,
+
+        verificationCompleted: (PhoneAuthCredential credential) async {
+          try {
+            await FirebaseAuth.instance.signInWithCredential(credential);
+
+            if (!mounted) return;
+
+            setState(() {
+              isLoading = false;
+            });
+
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const OtpPage(
+                  mobile: '',
+                  verificationId: '',
+                ),
+              ),
+            );
+          } on FirebaseAuthException catch (e) {
+            if (!mounted) return;
+
+            setState(() {
+              isLoading = false;
+            });
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  e.message ?? 'Firebase Login માં ભૂલ આવી',
+                ),
+              ),
+            );
+          }
+        },
+
+        verificationFailed: (FirebaseAuthException e) {
+          if (!mounted) return;
+
+          setState(() {
+            isLoading = false;
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                e.message ?? 'OTP મોકલવામાં ભૂલ આવી',
+              ),
+            ),
+          );
+        },
+
+        codeSent: (String verificationId, int? resendToken) {
+          if (!mounted) return;
+
+          setState(() {
+            isLoading = false;
+          });
+
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => OtpPage(
+                mobile: mobile,
+                verificationId: verificationId,
+              ),
+            ),
+          );
+        },
+
+        codeAutoRetrievalTimeout: (String verificationId) {
+          if (!mounted) return;
+
+          setState(() {
+            isLoading = false;
+          });
+        },
+
+        timeout: const Duration(seconds: 60),
+      );
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        isLoading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            e.message ?? 'OTP પ્રક્રિયામાં ભૂલ આવી',
+          ),
         ),
-      ),
-    );
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        isLoading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('કંઈક ભૂલ થઈ. ફરી પ્રયાસ કરો.'),
+        ),
+      );
+    }
   }
 
   @override
@@ -84,11 +197,19 @@ class _LoginPageState extends State<LoginPage> {
                   width: double.infinity,
                   height: 52,
                   child: ElevatedButton(
-                    onPressed: sendOtp,
-                    child: const Text(
-                      'OTP મોકલો',
-                      style: TextStyle(fontSize: 17),
-                    ),
+                    onPressed: isLoading ? null : sendOtp,
+                    child: isLoading
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Text(
+                            'OTP મોકલો',
+                            style: TextStyle(fontSize: 17),
+                          ),
                   ),
                 ),
               ],
