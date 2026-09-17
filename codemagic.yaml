@@ -15,7 +15,7 @@ workflows:
           cd sheth_app
           flutter create --platforms=android .
 
-          echo "$ANDROID_FIREBASE_JSON" | base64 --decode > android/app/google-services.json
+          echo "$ANDROID_FIREBASE_JSON" > android/app/google-services.json
 
           python3 - <<'PY'
           from pathlib import Path
