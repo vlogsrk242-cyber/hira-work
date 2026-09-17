@@ -1,0 +1,27 @@
+workflows:
+  android-release:
+    name: Hira Work Sheth APK
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+
+    environment:
+      flutter: stable
+
+    scripts:
+      - name: Generate Android project
+        script: |
+          cd sheth_app
+          flutter create --platforms=android .
+
+      - name: Get Flutter packages
+        script: |
+          cd sheth_app
+          flutter pub get
+
+      - name: Build Android APK
+        script: |
+          cd sheth_app
+          flutter build apk --release
+
+    artifacts:
+      - sheth_app/build/app/outputs/flutter-apk/app-release.apk
