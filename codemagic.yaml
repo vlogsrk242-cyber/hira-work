@@ -20,25 +20,30 @@ workflows:
           python3 - <<'PY'
           from pathlib import Path
 
-          build_file = Path("android/app/build.gradle.kts")
-          text = build_file.read_text()
-
-          text = text.replace(
-              'plugins {',
-              'plugins {\n    id("com.google.gms.google-services")'
-          )
-
-          build_file.write_text(text)
-
           settings_file = Path("android/settings.gradle.kts")
           text = settings_file.read_text()
 
-          text = text.replace(
-              'plugins {',
-              'plugins {\n    id("com.google.gms.google-services") version "4.4.4" apply false'
-          )
+          marker = 'id("com.android.application") version'
+          plugin_line = '    id("com.google.gms.google-services") version "4.5.0" apply false\n'
+
+          if 'com.google.gms.google-services' not in text:
+              text = text.replace(
+                  marker,
+                  plugin_line + '    ' + marker
+              )
 
           settings_file.write_text(text)
+
+          app_file = Path("android/app/build.gradle.kts")
+          text = app_file.read_text()
+
+          if 'id("com.google.gms.google-services")' not in text:
+              text = text.replace(
+                  'plugins {',
+                  'plugins {\n    id("com.google.gms.google-services")'
+              )
+
+          app_file.write_text(text)
           PY
 
       - name: Get Flutter packages
