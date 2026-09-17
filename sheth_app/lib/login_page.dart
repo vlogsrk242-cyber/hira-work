@@ -1,4 +1,3 @@
-```dart
 import 'package:flutter/material.dart';
 import 'otp_page.dart';
 
@@ -53,9 +52,7 @@ class _LoginPageState extends State<LoginPage> {
                   Icons.diamond,
                   size: 80,
                 ),
-
                 const SizedBox(height: 20),
-
                 const Text(
                   'હીરા કામ હિસ્ટરી',
                   style: TextStyle(
@@ -63,18 +60,14 @@ class _LoginPageState extends State<LoginPage> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-
                 const SizedBox(height: 8),
-
                 const Text(
                   'શેઠ Login',
                   style: TextStyle(
                     fontSize: 18,
                   ),
                 ),
-
                 const SizedBox(height: 40),
-
                 TextField(
                   controller: mobileController,
                   keyboardType: TextInputType.phone,
@@ -86,9 +79,7 @@ class _LoginPageState extends State<LoginPage> {
                     border: OutlineInputBorder(),
                   ),
                 ),
-
                 const SizedBox(height: 20),
-
                 SizedBox(
                   width: double.infinity,
                   height: 52,
@@ -96,9 +87,7 @@ class _LoginPageState extends State<LoginPage> {
                     onPressed: sendOtp,
                     child: const Text(
                       'OTP મોકલો',
-                      style: TextStyle(
-                        fontSize: 17,
-                      ),
+                      style: TextStyle(fontSize: 17),
                     ),
                   ),
                 ),
@@ -110,4 +99,3 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 }
-```
