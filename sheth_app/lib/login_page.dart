@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-import 'otp_page.dart';
 import 'dashboard_page.dart';
+import 'signup_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -12,19 +12,18 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final TextEditingController mobileController = TextEditingController();
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
 
   bool isLoading = false;
+  bool obscurePassword = true;
 
-  Future<void> sendOtp() async {
-    final mobile = mobileController.text.trim();
+  Future<void> login() async {
+    final email = emailController.text.trim();
+    final password = passwordController.text;
 
-    if (mobile.length != 10) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('કૃપા કરીને 10 અંકનો મોબાઈલ નંબર નાખો'),
-        ),
-      );
+    if (email.isEmpty || password.isEmpty) {
+      showMessage('Gmail ID અને Password નાખો');
       return;
     }
 
@@ -32,115 +31,59 @@ class _LoginPageState extends State<LoginPage> {
       isLoading = true;
     });
 
-    final phoneNumber = '+91$mobile';
-
     try {
-      await FirebaseAuth.instance.verifyPhoneNumber(
-        phoneNumber: phoneNumber,
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
 
-        verificationCompleted: (PhoneAuthCredential credential) async {
-          try {
-            await FirebaseAuth.instance.signInWithCredential(credential);
+      if (!mounted) return;
 
-            if (!mounted) return;
-
-            setState(() {
-              isLoading = false;
-            });
-
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const DashboardPage(),
-              ),
-            );
-          } on FirebaseAuthException catch (e) {
-            if (!mounted) return;
-
-            setState(() {
-              isLoading = false;
-            });
-
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  e.message ?? 'Firebase Login માં ભૂલ આવી',
-                ),
-              ),
-            );
-          }
-        },
-
-        verificationFailed: (FirebaseAuthException e) {
-          if (!mounted) return;
-
-          setState(() {
-            isLoading = false;
-          });
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                e.message ?? 'OTP મોકલવામાં ભૂલ આવી',
-              ),
-            ),
-          );
-        },
-
-        codeSent: (String verificationId, int? resendToken) {
-          if (!mounted) return;
-
-          setState(() {
-            isLoading = false;
-          });
-
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => OtpPage(
-                mobile: mobile,
-                verificationId: verificationId,
-              ),
-            ),
-          );
-        },
-
-        codeAutoRetrievalTimeout: (String verificationId) {},
-
-        timeout: const Duration(seconds: 60),
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const DashboardPage(),
+        ),
       );
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
 
-      setState(() {
-        isLoading = false;
-      });
+      String message = 'Invalid Gmail/Password';
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            e.message ?? 'OTP પ્રક્રિયામાં ભૂલ આવી',
-          ),
-        ),
-      );
+      if (e.code == 'invalid-credential' ||
+          e.code == 'wrong-password' ||
+          e.code == 'user-not-found') {
+        message = 'Invalid Gmail/Password';
+      } else if (e.code == 'invalid-email') {
+        message = 'Gmail ID સાચી નથી';
+      }
+
+      showMessage(message);
     } catch (e) {
       if (!mounted) return;
 
-      setState(() {
-        isLoading = false;
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('કંઈક ભૂલ થઈ. ફરી પ્રયાસ કરો.'),
-        ),
-      );
+      showMessage('Login કરવામાં ભૂલ થઈ');
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
     }
+  }
+
+  void showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+      ),
+    );
   }
 
   @override
   void dispose() {
-    mobileController.dispose();
+    emailController.dispose();
+    passwordController.dispose();
     super.dispose();
   }
 
@@ -157,7 +100,9 @@ class _LoginPageState extends State<LoginPage> {
                   Icons.diamond,
                   size: 80,
                 ),
+
                 const SizedBox(height: 20),
+
                 const Text(
                   'હીરા કામ હિસ્ટરી',
                   style: TextStyle(
@@ -165,31 +110,60 @@ class _LoginPageState extends State<LoginPage> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
+
                 const SizedBox(height: 8),
+
                 const Text(
                   'શેઠ Login',
                   style: TextStyle(
                     fontSize: 18,
                   ),
                 ),
+
                 const SizedBox(height: 40),
+
                 TextField(
-                  controller: mobileController,
-                  keyboardType: TextInputType.phone,
-                  maxLength: 10,
+                  controller: emailController,
+                  keyboardType: TextInputType.emailAddress,
                   decoration: const InputDecoration(
-                    labelText: 'મોબાઈલ નંબર',
-                    hintText: '10 અંકનો નંબર',
-                    prefixIcon: Icon(Icons.phone),
+                    labelText: 'Gmail ID',
+                    hintText: 'example@gmail.com',
+                    prefixIcon: Icon(Icons.email),
                     border: OutlineInputBorder(),
                   ),
                 ),
-                const SizedBox(height: 20),
+
+                const SizedBox(height: 18),
+
+                TextField(
+                  controller: passwordController,
+                  obscureText: obscurePassword,
+                  decoration: InputDecoration(
+                    labelText: 'Password',
+                    prefixIcon: const Icon(Icons.lock),
+                    border: const OutlineInputBorder(),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        obscurePassword
+                            ? Icons.visibility
+                            : Icons.visibility_off,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          obscurePassword = !obscurePassword;
+                        });
+                      },
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 22),
+
                 SizedBox(
                   width: double.infinity,
                   height: 52,
                   child: ElevatedButton(
-                    onPressed: isLoading ? null : sendOtp,
+                    onPressed: isLoading ? null : login,
                     child: isLoading
                         ? const SizedBox(
                             width: 24,
@@ -199,9 +173,26 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                           )
                         : const Text(
-                            'OTP મોકલો',
+                            'LOGIN',
                             style: TextStyle(fontSize: 17),
                           ),
+                  ),
+                ),
+
+                const SizedBox(height: 15),
+
+                TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const SignupPage(),
+                      ),
+                    );
+                  },
+                  child: const Text(
+                    'નવું Account બનાવો — SIGNUP',
+                    style: TextStyle(fontSize: 16),
                   ),
                 ),
               ],
