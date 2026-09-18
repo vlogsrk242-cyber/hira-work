@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'app_data.dart';
 
 class WorkersPage extends StatefulWidget {
@@ -9,10 +10,15 @@ class WorkersPage extends StatefulWidget {
 }
 
 class _WorkersPageState extends State<WorkersPage> {
-  void showWorkerForm({
+  final FirebaseFirestore firestore =
+      FirebaseFirestore.instance;
+
+  bool loading = false;
+
+  Future<void> saveWorker({
     WorkerData? worker,
     int? index,
-  }) {
+  }) async {
     final nameController = TextEditingController(
       text: worker?.name ?? '',
     );
@@ -77,7 +83,7 @@ class _WorkersPageState extends State<WorkersPage> {
               child: const Text('Cancel'),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 final name = nameController.text.trim();
                 final mobile = mobileController.text.trim();
                 final factory =
@@ -86,33 +92,112 @@ class _WorkersPageState extends State<WorkersPage> {
                 if (name.isEmpty ||
                     mobile.isEmpty ||
                     factory.isEmpty) {
-                  ScaffoldMessenger.of(context)
-                      .showSnackBar(
+                  ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text(
-                        'બધી માહિતી ભરો',
-                      ),
+                      content: Text('બધી માહિતી ભરો'),
                     ),
                   );
                   return;
                 }
 
-                setState(() {
-                  final newWorker = WorkerData(
-                    name: name,
-                    mobile: mobile,
-                    factoryNumber: factory,
-                  );
+                Navigator.pop(dialogContext);
+
+                try {
+                  setState(() {
+                    loading = true;
+                  });
 
                   if (worker == null) {
-                    AppData.workers.add(newWorker);
-                  } else {
-                    AppData.workers[index!] =
-                        newWorker;
-                  }
-                });
+                    // New worker → Firebase
+                    final doc = await firestore
+                        .collection('karigars')
+                        .add({
+                      'name': name,
+                      'mobile': mobile,
+                      'factoryNumber': factory,
+                      'createdAt':
+                          FieldValue.serverTimestamp(),
+                    });
 
-                Navigator.pop(dialogContext);
+                    setState(() {
+                      AppData.workers.add(
+                        WorkerData(
+                          name: name,
+                          mobile: mobile,
+                          factoryNumber: factory,
+                        ),
+                      );
+                    });
+
+                    debugPrint(
+                      'Karigar saved: ${doc.id}',
+                    );
+                  } else {
+                    // Edit existing worker
+                    final oldWorker = worker;
+
+                    final result = await firestore
+                        .collection('karigars')
+                        .where(
+                          'name',
+                          isEqualTo: oldWorker.name,
+                        )
+                        .where(
+                          'mobile',
+                          isEqualTo: oldWorker.mobile,
+                        )
+                        .where(
+                          'factoryNumber',
+                          isEqualTo:
+                              oldWorker.factoryNumber,
+                        )
+                        .limit(1)
+                        .get();
+
+                    if (result.docs.isNotEmpty) {
+                      await result.docs.first.reference
+                          .update({
+                        'name': name,
+                        'mobile': mobile,
+                        'factoryNumber': factory,
+                      });
+                    }
+
+                    setState(() {
+                      AppData.workers[index!] =
+                          WorkerData(
+                        name: name,
+                        mobile: mobile,
+                        factoryNumber: factory,
+                      );
+                    });
+                  }
+
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content:
+                            Text('કારીગર online databaseમાં Save થયો'),
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Databaseમાં Save કરવામાં ભૂલ થઈ',
+                        ),
+                      ),
+                    );
+                  }
+                } finally {
+                  if (mounted) {
+                    setState(() {
+                      loading = false;
+                    });
+                  }
+                }
               },
               child: const Text('Save'),
             ),
@@ -143,12 +228,64 @@ class _WorkersPageState extends State<WorkersPage> {
               child: const Text('Cancel'),
             ),
             ElevatedButton(
-              onPressed: () {
-                setState(() {
-                  AppData.workers.removeAt(index);
-                });
-
+              onPressed: () async {
                 Navigator.pop(dialogContext);
+
+                try {
+                  setState(() {
+                    loading = true;
+                  });
+
+                  final result = await firestore
+                      .collection('karigars')
+                      .where(
+                        'name',
+                        isEqualTo: worker.name,
+                      )
+                      .where(
+                        'mobile',
+                        isEqualTo: worker.mobile,
+                      )
+                      .where(
+                        'factoryNumber',
+                        isEqualTo:
+                            worker.factoryNumber,
+                      )
+                      .limit(1)
+                      .get();
+
+                  if (result.docs.isNotEmpty) {
+                    await result.docs.first.reference.delete();
+                  }
+
+                  setState(() {
+                    AppData.workers.removeAt(index);
+                  });
+
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content:
+                            Text('કારીગર Delete થઈ ગયો'),
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content:
+                            Text('Delete કરવામાં ભૂલ થઈ'),
+                      ),
+                    );
+                  }
+                } finally {
+                  if (mounted) {
+                    setState(() {
+                      loading = false;
+                    });
+                  }
+                }
               },
               child: const Text('Delete'),
             ),
@@ -165,71 +302,77 @@ class _WorkersPageState extends State<WorkersPage> {
         title: const Text('👷 કારીગર'),
         centerTitle: true,
       ),
-      body: AppData.workers.isEmpty
+      body: loading
           ? const Center(
-              child: Text(
-                'હજુ કોઈ કારીગર ઉમેરાયો નથી',
-                style: TextStyle(fontSize: 17),
-              ),
+              child: CircularProgressIndicator(),
             )
-          : ListView.builder(
-              padding: const EdgeInsets.all(12),
-              itemCount: AppData.workers.length,
-              itemBuilder: (context, index) {
-                final worker =
-                    AppData.workers[index];
-
-                return Card(
-                  child: ListTile(
-                    leading: const CircleAvatar(
-                      child: Icon(Icons.person),
-                    ),
-                    title: Text(
-                      worker.name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    subtitle: Text(
-                      'મોબાઈલ: ${worker.mobile}\n'
-                      'કારખાના નંબર: ${worker.factoryNumber}',
-                    ),
-                    isThreeLine: true,
-                    trailing:
-                        PopupMenuButton<String>(
-                      onSelected: (value) {
-                        if (value == 'edit') {
-                          showWorkerForm(
-                            worker: worker,
-                            index: index,
-                          );
-                        }
-
-                        if (value == 'delete') {
-                          deleteWorker(index);
-                        }
-                      },
-                      itemBuilder: (context) =>
-                          const [
-                        PopupMenuItem(
-                          value: 'edit',
-                          child: Text('Edit'),
-                        ),
-                        PopupMenuItem(
-                          value: 'delete',
-                          child: Text('Delete'),
-                        ),
-                      ],
-                    ),
+          : AppData.workers.isEmpty
+              ? const Center(
+                  child: Text(
+                    'હજુ કોઈ કારીગર ઉમેરાયો નથી',
+                    style: TextStyle(fontSize: 17),
                   ),
-                );
-              },
-            ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.all(12),
+                  itemCount: AppData.workers.length,
+                  itemBuilder: (context, index) {
+                    final worker =
+                        AppData.workers[index];
+
+                    return Card(
+                      child: ListTile(
+                        leading: const CircleAvatar(
+                          child: Icon(Icons.person),
+                        ),
+                        title: Text(
+                          worker.name,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        subtitle: Text(
+                          'મોબાઈલ: ${worker.mobile}\n'
+                          'કારખાના નંબર: ${worker.factoryNumber}',
+                        ),
+                        isThreeLine: true,
+                        trailing:
+                            PopupMenuButton<String>(
+                          onSelected: (value) {
+                            if (value == 'edit') {
+                              saveWorker(
+                                worker: worker,
+                                index: index,
+                              );
+                            }
+
+                            if (value == 'delete') {
+                              deleteWorker(index);
+                            }
+                          },
+                          itemBuilder: (context) =>
+                              const [
+                            PopupMenuItem(
+                              value: 'edit',
+                              child: Text('Edit'),
+                            ),
+                            PopupMenuItem(
+                              value: 'delete',
+                              child: Text('Delete'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
       floatingActionButton:
           FloatingActionButton.extended(
-        onPressed: () {
-          showWorkerForm();
-        },
+        onPressed: loading
+            ? null
+            : () {
+                saveWorker();
+              },
         icon: const Icon(Icons.person_add),
         label: const Text('કારીગર ઉમેરો'),
       ),
