@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 class SignupPage extends StatefulWidget {
@@ -43,13 +44,35 @@ class _SignupPageState extends State<SignupPage> {
       return;
     }
 
-    setState(() => loading = true);
+    setState(() {
+      loading = true;
+    });
 
     try {
-      await FirebaseAuth.instance.createUserWithEmailAndPassword(
+      final userCredential =
+          await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
+
+      final user = userCredential.user;
+
+      if (user == null) {
+        showMessage('Account બની શક્યું નથી');
+        return;
+      }
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .set({
+        'name': name,
+        'mobile': mobile,
+        'email': email,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      await FirebaseAuth.instance.signOut();
 
       if (!mounted) return;
 
@@ -68,16 +91,22 @@ class _SignupPageState extends State<SignupPage> {
       }
 
       showMessage(message);
+    } catch (e) {
+      showMessage('માહિતી Save કરવામાં ભૂલ થઈ');
     } finally {
       if (mounted) {
-        setState(() => loading = false);
+        setState(() {
+          loading = false;
+        });
       }
     }
   }
 
   void showMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
+      SnackBar(
+        content: Text(message),
+      ),
     );
   }
 
@@ -108,9 +137,7 @@ class _SignupPageState extends State<SignupPage> {
                 border: OutlineInputBorder(),
               ),
             ),
-
             const SizedBox(height: 15),
-
             TextField(
               controller: mobileController,
               keyboardType: TextInputType.phone,
@@ -119,9 +146,7 @@ class _SignupPageState extends State<SignupPage> {
                 border: OutlineInputBorder(),
               ),
             ),
-
             const SizedBox(height: 15),
-
             TextField(
               controller: emailController,
               keyboardType: TextInputType.emailAddress,
@@ -130,9 +155,7 @@ class _SignupPageState extends State<SignupPage> {
                 border: OutlineInputBorder(),
               ),
             ),
-
             const SizedBox(height: 15),
-
             TextField(
               controller: passwordController,
               obscureText: true,
@@ -141,9 +164,7 @@ class _SignupPageState extends State<SignupPage> {
                 border: OutlineInputBorder(),
               ),
             ),
-
             const SizedBox(height: 15),
-
             TextField(
               controller: confirmPasswordController,
               obscureText: true,
@@ -152,9 +173,7 @@ class _SignupPageState extends State<SignupPage> {
                 border: OutlineInputBorder(),
               ),
             ),
-
             const SizedBox(height: 25),
-
             SizedBox(
               width: double.infinity,
               height: 52,
