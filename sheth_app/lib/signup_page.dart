@@ -17,8 +17,12 @@ class _SignupPageState extends State<SignupPage> {
   final confirmPasswordController = TextEditingController();
 
   bool loading = false;
+  bool obscurePassword = true;
+  bool obscureConfirmPassword = true;
 
   Future<void> signup() async {
+    if (loading) return;
+
     final name = nameController.text.trim();
     final mobile = mobileController.text.trim();
     final email = emailController.text.trim();
@@ -44,13 +48,18 @@ class _SignupPageState extends State<SignupPage> {
       return;
     }
 
+    FocusScope.of(context).unfocus();
+
     setState(() {
       loading = true;
     });
 
     try {
+      final auth = FirebaseAuth.instance;
+      final firestore = FirebaseFirestore.instance;
+
       final userCredential =
-          await FirebaseAuth.instance.createUserWithEmailAndPassword(
+          await auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
@@ -58,11 +67,12 @@ class _SignupPageState extends State<SignupPage> {
       final user = userCredential.user;
 
       if (user == null) {
-        showMessage('Account બની શક્યું નથી');
-        return;
+        throw FirebaseAuthException(
+          code: 'account-creation-failed',
+        );
       }
 
-      await FirebaseFirestore.instance
+      await firestore
           .collection('users')
           .doc(user.uid)
           .set({
@@ -72,26 +82,46 @@ class _SignupPageState extends State<SignupPage> {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      await FirebaseAuth.instance.signOut();
+      await auth.signOut();
 
       if (!mounted) return;
 
       showMessage('Account સફળતાપૂર્વક બની ગયું');
 
+      await Future.delayed(
+        const Duration(milliseconds: 500),
+      );
+
+      if (!mounted) return;
+
       Navigator.pop(context);
     } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+
       String message = 'Signup થઈ શક્યું નથી';
 
-      if (e.code == 'email-already-in-use') {
-        message = 'આ Gmail ID પહેલેથી ઉપયોગમાં છે';
-      } else if (e.code == 'invalid-email') {
-        message = 'Gmail ID સાચી નથી';
-      } else if (e.code == 'weak-password') {
-        message = 'Password વધુ મજબૂત રાખો';
+      switch (e.code) {
+        case 'email-already-in-use':
+          message = 'આ Gmail ID પહેલેથી ઉપયોગમાં છે';
+          break;
+
+        case 'invalid-email':
+          message = 'Gmail ID સાચી નથી';
+          break;
+
+        case 'weak-password':
+          message = 'Password વધુ મજબૂત રાખો';
+          break;
+
+        case 'network-request-failed':
+          message = 'Internet connection તપાસો';
+          break;
       }
 
       showMessage(message);
     } catch (e) {
+      if (!mounted) return;
+
       showMessage('માહિતી Save કરવામાં ભૂલ થઈ');
     } finally {
       if (mounted) {
@@ -103,11 +133,15 @@ class _SignupPageState extends State<SignupPage> {
   }
 
   void showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-      ),
-    );
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+        ),
+      );
   }
 
   @override
@@ -132,58 +166,108 @@ class _SignupPageState extends State<SignupPage> {
           children: [
             TextField(
               controller: nameController,
+              textInputAction: TextInputAction.next,
               decoration: const InputDecoration(
                 labelText: 'પુરુ નામ',
                 border: OutlineInputBorder(),
               ),
             ),
+
             const SizedBox(height: 15),
+
             TextField(
               controller: mobileController,
               keyboardType: TextInputType.phone,
+              textInputAction: TextInputAction.next,
               decoration: const InputDecoration(
                 labelText: 'મોબાઇલ નંબર',
                 border: OutlineInputBorder(),
               ),
             ),
+
             const SizedBox(height: 15),
+
             TextField(
               controller: emailController,
               keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.next,
+              autocorrect: false,
               decoration: const InputDecoration(
                 labelText: 'Gmail ID',
                 border: OutlineInputBorder(),
               ),
             ),
+
             const SizedBox(height: 15),
+
             TextField(
               controller: passwordController,
-              obscureText: true,
-              decoration: const InputDecoration(
+              obscureText: obscurePassword,
+              textInputAction: TextInputAction.next,
+              decoration: InputDecoration(
                 labelText: 'Password',
-                border: OutlineInputBorder(),
+                border: const OutlineInputBorder(),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    obscurePassword
+                        ? Icons.visibility
+                        : Icons.visibility_off,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      obscurePassword = !obscurePassword;
+                    });
+                  },
+                ),
               ),
             ),
+
             const SizedBox(height: 15),
+
             TextField(
               controller: confirmPasswordController,
-              obscureText: true,
-              decoration: const InputDecoration(
+              obscureText: obscureConfirmPassword,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => signup(),
+              decoration: InputDecoration(
                 labelText: 'Confirm Password',
-                border: OutlineInputBorder(),
+                border: const OutlineInputBorder(),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    obscureConfirmPassword
+                        ? Icons.visibility
+                        : Icons.visibility_off,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      obscureConfirmPassword =
+                          !obscureConfirmPassword;
+                    });
+                  },
+                ),
               ),
             ),
+
             const SizedBox(height: 25),
+
             SizedBox(
               width: double.infinity,
               height: 52,
               child: ElevatedButton(
                 onPressed: loading ? null : signup,
                 child: loading
-                    ? const CircularProgressIndicator()
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                        ),
+                      )
                     : const Text(
                         'SIGNUP',
-                        style: TextStyle(fontSize: 18),
+                        style: TextStyle(
+                          fontSize: 18,
+                        ),
                       ),
               ),
             ),
