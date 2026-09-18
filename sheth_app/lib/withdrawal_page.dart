@@ -20,31 +20,40 @@ class _WithdrawalPageState extends State<WithdrawalPage> {
     'મથાળા',
   ];
 
-  bool loading = false;
+  late final String userUid;
 
-  String get currentUid =>
-      FirebaseAuth.instance.currentUser?.uid ?? '';
+  late final Stream<QuerySnapshot<Map<String, dynamic>>>
+      _withdrawalsStream;
 
-  Stream<QuerySnapshot<Map<String, dynamic>>>
-      get withdrawalsStream {
-    return firestore
-        .collection('withdrawals')
-        .where(
-          'ownerUid',
-          isEqualTo: currentUid,
-        )
-        .snapshots();
-  }
+  late final Stream<QuerySnapshot<Map<String, dynamic>>>
+      _workersStream;
 
-  Stream<QuerySnapshot<Map<String, dynamic>>>
-      get workersStream {
-    return firestore
-        .collection('karigars')
-        .where(
-          'ownerUid',
-          isEqualTo: currentUid,
-        )
-        .snapshots();
+  bool saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    userUid =
+        FirebaseAuth.instance.currentUser?.uid ?? '';
+
+    if (userUid.isNotEmpty) {
+      _withdrawalsStream = firestore
+          .collection('withdrawals')
+          .where(
+            'ownerUid',
+            isEqualTo: userUid,
+          )
+          .snapshots();
+
+      _workersStream = firestore
+          .collection('karigars')
+          .where(
+            'ownerUid',
+            isEqualTo: userUid,
+          )
+          .snapshots();
+    }
   }
 
   void showWithdrawalForm({
@@ -83,24 +92,45 @@ class _WithdrawalPageState extends State<WithdrawalPage> {
       builder: (dialogContext) {
         return StreamBuilder<
             QuerySnapshot<Map<String, dynamic>>>(
-          stream: workersStream,
+          stream: _workersStream,
           builder: (context, workerSnapshot) {
+            if (workerSnapshot.hasError) {
+              return AlertDialog(
+                title: const Text('ઉપાડ'),
+                content: const Text(
+                  'કારીગરનો ડેટા લાવવામાં ભૂલ થઈ',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(
+                        dialogContext,
+                      );
+                    },
+                    child: const Text('OK'),
+                  ),
+                ],
+              );
+            }
+
             final workerDocs =
                 workerSnapshot.data?.docs ?? [];
 
             final workerNames = workerDocs
                 .map(
                   (doc) =>
-                      doc.data()['name']?.toString() ??
+                      doc.data()['name']
+                          ?.toString()
+                          .trim() ??
                       '',
                 )
-                .where((name) => name.isNotEmpty)
+                .where(
+                  (name) => name.isNotEmpty,
+                )
+                .toSet()
                 .toList();
 
-            if (selectedWorker.isEmpty &&
-                workerNames.isNotEmpty) {
-              selectedWorker = workerNames.first;
-            }
+            workerNames.sort();
 
             if (!workerNames.contains(selectedWorker)) {
               selectedWorker = workerNames.isNotEmpty
@@ -113,6 +143,8 @@ class _WithdrawalPageState extends State<WithdrawalPage> {
                 dialogContext,
                 setDialogState,
               ) {
+                bool dialogSaving = false;
+
                 return AlertDialog(
                   title: Text(
                     docId == null
@@ -149,38 +181,43 @@ class _WithdrawalPageState extends State<WithdrawalPage> {
                                 ),
                               )
                               .toList(),
-                          onChanged: (value) {
-                            if (value != null) {
-                              setDialogState(() {
-                                selectedSection =
-                                    value;
-                              });
-                            }
-                          },
+                          onChanged: dialogSaving
+                              ? null
+                              : (value) {
+                                  if (value != null) {
+                                    setDialogState(() {
+                                      selectedSection =
+                                          value;
+                                    });
+                                  }
+                                },
                         ),
+
                         const SizedBox(height: 12),
 
                         InkWell(
-                          onTap: () async {
-                            final picked =
-                                await showDatePicker(
-                              context:
-                                  dialogContext,
-                              initialDate:
-                                  selectedDate,
-                              firstDate:
-                                  DateTime(2020),
-                              lastDate:
-                                  DateTime(2100),
-                            );
+                          onTap: dialogSaving
+                              ? null
+                              : () async {
+                                  final picked =
+                                      await showDatePicker(
+                                    context:
+                                        dialogContext,
+                                    initialDate:
+                                        selectedDate,
+                                    firstDate:
+                                        DateTime(2020),
+                                    lastDate:
+                                        DateTime(2100),
+                                  );
 
-                            if (picked != null) {
-                              setDialogState(() {
-                                selectedDate =
-                                    picked;
-                              });
-                            }
-                          },
+                                  if (picked != null) {
+                                    setDialogState(() {
+                                      selectedDate =
+                                          picked;
+                                    });
+                                  }
+                                },
                           child: InputDecorator(
                             decoration:
                                 const InputDecoration(
@@ -202,6 +239,7 @@ class _WithdrawalPageState extends State<WithdrawalPage> {
                             ),
                           ),
                         ),
+
                         const SizedBox(height: 12),
 
                         if (workerNames.isEmpty)
@@ -244,14 +282,16 @@ class _WithdrawalPageState extends State<WithdrawalPage> {
                                   ),
                                 )
                                 .toList(),
-                            onChanged: (value) {
-                              if (value != null) {
-                                setDialogState(() {
-                                  selectedWorker =
-                                      value;
-                                });
-                              }
-                            },
+                            onChanged: dialogSaving
+                                ? null
+                                : (value) {
+                                    if (value != null) {
+                                      setDialogState(() {
+                                        selectedWorker =
+                                            value;
+                                      });
+                                    }
+                                  },
                           ),
 
                         const SizedBox(height: 12),
@@ -259,11 +299,14 @@ class _WithdrawalPageState extends State<WithdrawalPage> {
                         TextField(
                           controller:
                               amountController,
+                          enabled: !dialogSaving,
                           keyboardType:
                               const TextInputType
                                   .numberWithOptions(
                             decimal: true,
                           ),
+                          textInputAction:
+                              TextInputAction.done,
                           decoration:
                               const InputDecoration(
                             labelText:
@@ -282,113 +325,142 @@ class _WithdrawalPageState extends State<WithdrawalPage> {
                   ),
                   actions: [
                     TextButton(
-                      onPressed: () {
-                        Navigator.pop(
-                          dialogContext,
-                        );
-                      },
+                      onPressed: dialogSaving
+                          ? null
+                          : () {
+                              Navigator.pop(
+                                dialogContext,
+                              );
+                            },
                       child:
                           const Text('Cancel'),
                     ),
                     ElevatedButton(
-                      onPressed: () async {
-                        final amount =
-                            double.tryParse(
-                          amountController
-                              .text
-                              .trim(),
-                        );
+                      onPressed: dialogSaving
+                          ? null
+                          : () async {
+                              final amount =
+                                  double.tryParse(
+                                amountController
+                                    .text
+                                    .trim(),
+                              );
 
-                        if (workerNames.isEmpty) {
-                          _showMessage(
-                            'પહેલા કારીગર ઉમેરો',
-                          );
-                          return;
-                        }
+                              if (workerNames.isEmpty) {
+                                _showMessage(
+                                  'પહેલા કારીગર ઉમેરો',
+                                );
+                                return;
+                              }
 
-                        if (amount == null ||
-                            amount <= 0) {
-                          _showMessage(
-                            'ઉપાડની રકમ સાચી નાખો',
-                          );
-                          return;
-                        }
+                              if (amount == null ||
+                                  amount <= 0) {
+                                _showMessage(
+                                  'ઉપાડની રકમ સાચી નાખો',
+                                );
+                                return;
+                              }
 
-                        if (currentUid.isEmpty) {
-                          _showMessage(
-                            'કૃપા કરીને પહેલા Login કરો',
-                          );
-                          return;
-                        }
+                              if (userUid.isEmpty) {
+                                _showMessage(
+                                  'કૃપા કરીને પહેલા Login કરો',
+                                );
+                                return;
+                              }
 
-                        try {
-                          Navigator.pop(
-                            dialogContext,
-                          );
+                              setDialogState(() {
+                                dialogSaving = true;
+                              });
 
-                          setState(() {
-                            loading = true;
-                          });
+                              try {
+                                final data = {
+                                  'ownerUid':
+                                      userUid,
+                                  'section':
+                                      selectedSection,
+                                  'date':
+                                      DateFormat(
+                                    'dd-MM-yyyy',
+                                  ).format(
+                                    selectedDate,
+                                  ),
+                                  'worker':
+                                      selectedWorker,
+                                  'amount': amount,
+                                  'updatedAt':
+                                      FieldValue
+                                          .serverTimestamp(),
+                                };
 
-                          final data = {
-                            'ownerUid':
-                                currentUid,
-                            'section':
-                                selectedSection,
-                            'date': DateFormat(
-                              'dd-MM-yyyy',
-                            ).format(
-                              selectedDate,
-                            ),
-                            'worker':
-                                selectedWorker,
-                            'amount': amount,
-                            'updatedAt':
-                                FieldValue
-                                    .serverTimestamp(),
-                          };
+                                if (docId == null) {
+                                  await firestore
+                                      .collection(
+                                        'withdrawals',
+                                      )
+                                      .add({
+                                    ...data,
+                                    'createdAt':
+                                        FieldValue
+                                            .serverTimestamp(),
+                                  });
 
-                          if (docId == null) {
-                            await firestore
-                                .collection(
-                                  'withdrawals',
-                                )
-                                .add({
-                              ...data,
-                              'createdAt':
-                                  FieldValue
-                                      .serverTimestamp(),
-                            });
+                                  if (!mounted) {
+                                    return;
+                                  }
 
-                            _showMessage(
-                              'ઉપાડ Firebaseમાં Save થયો',
-                            );
-                          } else {
-                            await firestore
-                                .collection(
-                                  'withdrawals',
-                                )
-                                .doc(docId)
-                                .update(data);
+                                  Navigator.pop(
+                                    dialogContext,
+                                  );
 
-                            _showMessage(
-                              'ઉપાડ Update થયો',
-                            );
-                          }
-                        } catch (e) {
-                          _showMessage(
-                            'ઉપાડ Save કરવામાં ભૂલ થઈ',
-                          );
-                        } finally {
-                          if (mounted) {
-                            setState(() {
-                              loading = false;
-                            });
-                          }
-                        }
-                      },
-                      child:
-                          const Text('Save'),
+                                  _showMessage(
+                                    'ઉપાડ Firebaseમાં Save થયો',
+                                  );
+                                } else {
+                                  await firestore
+                                      .collection(
+                                        'withdrawals',
+                                      )
+                                      .doc(docId)
+                                      .update(
+                                        data,
+                                      );
+
+                                  if (!mounted) {
+                                    return;
+                                  }
+
+                                  Navigator.pop(
+                                    dialogContext,
+                                  );
+
+                                  _showMessage(
+                                    'ઉપાડ Update થયો',
+                                  );
+                                }
+                              } catch (e) {
+                                if (!mounted) {
+                                  return;
+                                }
+
+                                setDialogState(() {
+                                  dialogSaving = false;
+                                });
+
+                                _showMessage(
+                                  'ઉપાડ Save કરવામાં ભૂલ થઈ',
+                                );
+                              }
+                            },
+                      child: dialogSaving
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child:
+                                  CircularProgressIndicator(
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Text('Save'),
                     ),
                   ],
                 );
@@ -397,7 +469,9 @@ class _WithdrawalPageState extends State<WithdrawalPage> {
           },
         );
       },
-    );
+    ).then((_) {
+      amountController.dispose();
+    });
   }
 
   Future<void> deleteWithdrawal(
@@ -405,66 +479,102 @@ class _WithdrawalPageState extends State<WithdrawalPage> {
     String worker,
     double amount,
   ) async {
-    showDialog(
+    final confirmed =
+        await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text(
-            'ઉપાડ Delete કરો?',
-          ),
-          content: Text(
-            'શું તમે $worker નો '
-            '₹ ${amount.toStringAsFixed(2)} '
-            'ઉપાડ Delete કરવા માંગો છો?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(
-                  dialogContext,
-                );
-              },
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                Navigator.pop(
-                  dialogContext,
-                );
+        bool deleting = false;
 
-                try {
-                  setState(() {
-                    loading = true;
-                  });
+        return StatefulBuilder(
+          builder: (
+            context,
+            setDialogState,
+          ) {
+            return AlertDialog(
+              title: const Text(
+                'ઉપાડ Delete કરો?',
+              ),
+              content: Text(
+                'શું તમે $worker નો '
+                '₹ ${amount.toStringAsFixed(2)} '
+                'ઉપાડ Delete કરવા માંગો છો?',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: deleting
+                      ? null
+                      : () {
+                          Navigator.pop(
+                            dialogContext,
+                            false,
+                          );
+                        },
+                  child:
+                      const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: deleting
+                      ? null
+                      : () async {
+                          setDialogState(() {
+                            deleting = true;
+                          });
 
-                  await firestore
-                      .collection(
-                        'withdrawals',
-                      )
-                      .doc(docId)
-                      .delete();
+                          try {
+                            await firestore
+                                .collection(
+                                  'withdrawals',
+                                )
+                                .doc(docId)
+                                .delete();
 
-                  _showMessage(
-                    'ઉપાડ Delete થઈ ગયો',
-                  );
-                } catch (e) {
-                  _showMessage(
-                    'Delete કરવામાં ભૂલ થઈ',
-                  );
-                } finally {
-                  if (mounted) {
-                    setState(() {
-                      loading = false;
-                    });
-                  }
-                }
-              },
-              child: const Text('Delete'),
-            ),
-          ],
+                            if (!mounted) {
+                              return;
+                            }
+
+                            Navigator.pop(
+                              dialogContext,
+                              true,
+                            );
+
+                            _showMessage(
+                              'ઉપાડ Delete થઈ ગયો',
+                            );
+                          } catch (e) {
+                            if (!mounted) {
+                              return;
+                            }
+
+                            setDialogState(() {
+                              deleting = false;
+                            });
+
+                            _showMessage(
+                              'Delete કરવામાં ભૂલ થઈ',
+                            );
+                          }
+                        },
+                  child: deleting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child:
+                              CircularProgressIndicator(
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text('Delete'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
+
+    if (confirmed != true) {
+      return;
+    }
   }
 
   double calculateTotal(
@@ -476,14 +586,14 @@ class _WithdrawalPageState extends State<WithdrawalPage> {
 
     for (final doc in docs) {
       final amount =
-          (doc.data()['amount'] ?? 0);
+          doc.data()['amount'];
 
       if (amount is num) {
         total += amount.toDouble();
       } else {
         total +=
             double.tryParse(
-                  amount.toString(),
+                  amount?.toString() ?? '',
                 ) ??
                 0;
       }
@@ -496,232 +606,233 @@ class _WithdrawalPageState extends State<WithdrawalPage> {
     if (!mounted) return;
 
     ScaffoldMessenger.of(context)
-        .showSnackBar(
-      SnackBar(
-        content: Text(message),
-      ),
-    );
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+        ),
+      );
   }
 
   @override
   Widget build(BuildContext context) {
+    if (userUid.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('💰 ઉપાડ'),
+          centerTitle: true,
+        ),
+        body: const Center(
+          child: Text(
+            'કૃપા કરીને પહેલા Login કરો',
+          ),
+        ),
+        floatingActionButton:
+            const SizedBox.shrink(),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('💰 ઉપાડ'),
         centerTitle: true,
       ),
-      body: loading
-          ? const Center(
+      body: StreamBuilder<
+          QuerySnapshot<Map<String, dynamic>>>(
+        stream: _withdrawalsStream,
+        builder: (
+          context,
+          snapshot,
+        ) {
+          if (snapshot.hasError) {
+            return const Center(
+              child: Text(
+                'ઉપાડનો ડેટા લાવવામાં ભૂલ થઈ',
+              ),
+            );
+          }
+
+          if (snapshot.connectionState ==
+                  ConnectionState.waiting &&
+              !snapshot.hasData) {
+            return const Center(
               child:
                   CircularProgressIndicator(),
-            )
-          : currentUid.isEmpty
-              ? const Center(
-                  child: Text(
-                    'કૃપા કરીને પહેલા Login કરો',
-                  ),
-                )
-              : StreamBuilder<
-                  QuerySnapshot<
-                      Map<String, dynamic>>>(
-                  stream: withdrawalsStream,
-                  builder: (
-                    context,
-                    snapshot,
-                  ) {
-                    if (snapshot.hasError) {
-                      return const Center(
+            );
+          }
+
+          final docs =
+              snapshot.data?.docs ?? [];
+
+          final total =
+              calculateTotal(docs);
+
+          return Column(
+            children: [
+              Expanded(
+                child: docs.isEmpty
+                    ? const Center(
                         child: Text(
-                          'ઉપાડનો ડેટા લાવવામાં ભૂલ થઈ',
-                        ),
-                      );
-                    }
-
-                    if (snapshot.connectionState ==
-                        ConnectionState.waiting) {
-                      return const Center(
-                        child:
-                            CircularProgressIndicator(),
-                      );
-                    }
-
-                    final docs =
-                        snapshot.data?.docs ?? [];
-
-                    final total =
-                        calculateTotal(docs);
-
-                    return Column(
-                      children: [
-                        Expanded(
-                          child: docs.isEmpty
-                              ? const Center(
-                                  child: Text(
-                                    'હજુ કોઈ ઉપાડ ઉમેરાયો નથી',
-                                    style:
-                                        TextStyle(
-                                      fontSize: 17,
-                                    ),
-                                  ),
-                                )
-                              : ListView.builder(
-                                  padding:
-                                      const EdgeInsets
-                                          .all(12),
-                                  itemCount:
-                                      docs.length,
-                                  itemBuilder:
-                                      (
-                                    context,
-                                    index,
-                                  ) {
-                                    final doc =
-                                        docs[index];
-
-                                    final data =
-                                        doc.data();
-
-                                    final worker =
-                                        data['worker'] ??
-                                            '';
-
-                                    final section =
-                                        data['section'] ??
-                                            '';
-
-                                    final date =
-                                        data['date'] ??
-                                            '';
-
-                                    final amount =
-                                        (data['amount'] ??
-                                                0)
-                                            .toDouble();
-
-                                    return Card(
-                                      margin:
-                                          const EdgeInsets
-                                              .only(
-                                        bottom: 12,
-                                      ),
-                                      child:
-                                          ListTile(
-                                        leading:
-                                            const CircleAvatar(
-                                          child:
-                                              Icon(
-                                            Icons
-                                                .payments,
-                                          ),
-                                        ),
-                                        title:
-                                            Text(
-                                          worker
-                                              .toString(),
-                                          style:
-                                              const TextStyle(
-                                            fontWeight:
-                                                FontWeight
-                                                    .bold,
-                                          ),
-                                        ),
-                                        subtitle:
-                                            Text(
-                                          'વિભાગ: $section\n'
-                                          'તારીખ: $date\n'
-                                          'ઉપાડ: ₹ ${amount.toStringAsFixed(2)}',
-                                        ),
-                                        isThreeLine:
-                                            true,
-                                        trailing:
-                                            PopupMenuButton<
-                                                String>(
-                                          onSelected:
-                                              (
-                                            value,
-                                          ) {
-                                            if (value ==
-                                                'edit') {
-                                              showWithdrawalForm(
-                                                docId:
-                                                    doc.id,
-                                                withdrawal:
-                                                    data,
-                                              );
-                                            }
-
-                                            if (value ==
-                                                'delete') {
-                                              deleteWithdrawal(
-                                                doc.id,
-                                                worker
-                                                    .toString(),
-                                                amount,
-                                              );
-                                            }
-                                          },
-                                          itemBuilder:
-                                              (
-                                            context,
-                                          ) =>
-                                              const [
-                                            PopupMenuItem(
-                                              value:
-                                                  'edit',
-                                              child:
-                                                  Text(
-                                                'Edit',
-                                              ),
-                                            ),
-                                            PopupMenuItem(
-                                              value:
-                                                  'delete',
-                                              child:
-                                                  Text(
-                                                'Delete',
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                        ),
-
-                        SafeArea(
-                          child: Padding(
-                            padding:
-                                const EdgeInsets
-                                    .all(12),
-                            child: Card(
-                              child: Padding(
-                                padding:
-                                    const EdgeInsets
-                                        .all(16),
-                                child: Text(
-                                  'ટોટલ ઉપાડ: ₹ '
-                                  '${total.toStringAsFixed(2)}',
-                                  textAlign:
-                                      TextAlign.center,
-                                  style:
-                                      const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight:
-                                        FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ),
+                          'હજુ કોઈ ઉપાડ ઉમેરાયો નથી',
+                          style: TextStyle(
+                            fontSize: 17,
                           ),
                         ),
-                      ],
-                    );
-                  },
+                      )
+                    : ListView.builder(
+                        padding:
+                            const EdgeInsets.all(
+                          12,
+                        ),
+                        itemCount: docs.length,
+                        itemBuilder:
+                            (
+                          context,
+                          index,
+                        ) {
+                          final doc =
+                              docs[index];
+
+                          final data =
+                              doc.data();
+
+                          final worker =
+                              data['worker']
+                                      ?.toString() ??
+                                  '';
+
+                          final section =
+                              data['section']
+                                      ?.toString() ??
+                                  '';
+
+                          final date =
+                              data['date']
+                                      ?.toString() ??
+                                  '';
+
+                          final amount =
+                              _toDouble(
+                            data['amount'],
+                          );
+
+                          return Card(
+                            margin:
+                                const EdgeInsets
+                                    .only(
+                              bottom: 12,
+                            ),
+                            child: ListTile(
+                              leading:
+                                  const CircleAvatar(
+                                child: Icon(
+                                  Icons.payments,
+                                ),
+                              ),
+                              title: Text(
+                                worker,
+                                style:
+                                    const TextStyle(
+                                  fontWeight:
+                                      FontWeight
+                                          .bold,
+                                ),
+                              ),
+                              subtitle:
+                                  Text(
+                                'વિભાગ: $section\n'
+                                'તારીખ: $date\n'
+                                'ઉપાડ: ₹ ${amount.toStringAsFixed(2)}',
+                              ),
+                              isThreeLine:
+                                  true,
+                              trailing:
+                                  PopupMenuButton<
+                                      String>(
+                                onSelected:
+                                    (
+                                  value,
+                                ) {
+                                  if (value ==
+                                      'edit') {
+                                    showWithdrawalForm(
+                                      docId:
+                                          doc.id,
+                                      withdrawal:
+                                          data,
+                                    );
+                                  }
+
+                                  if (value ==
+                                      'delete') {
+                                    deleteWithdrawal(
+                                      doc.id,
+                                      worker,
+                                      amount,
+                                    );
+                                  }
+                                },
+                                itemBuilder:
+                                    (
+                                  context,
+                                ) =>
+                                    const [
+                                  PopupMenuItem(
+                                    value: 'edit',
+                                    child:
+                                        Text(
+                                      'Edit',
+                                    ),
+                                  ),
+                                  PopupMenuItem(
+                                    value:
+                                        'delete',
+                                    child:
+                                        Text(
+                                      'Delete',
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+
+              SafeArea(
+                child: Padding(
+                  padding:
+                      const EdgeInsets.all(12),
+                  child: Card(
+                    child: Padding(
+                      padding:
+                          const EdgeInsets.all(
+                        16,
+                      ),
+                      child: Text(
+                        'ટોટલ ઉપાડ: ₹ '
+                        '${total.toStringAsFixed(2)}',
+                        textAlign:
+                            TextAlign.center,
+                        style:
+                            const TextStyle(
+                          fontSize: 18,
+                          fontWeight:
+                              FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
+              ),
+            ],
+          );
+        },
+      ),
       floatingActionButton:
           FloatingActionButton.extended(
-        onPressed: loading
+        onPressed: saving
             ? null
             : () {
                 showWithdrawalForm();
@@ -731,5 +842,16 @@ class _WithdrawalPageState extends State<WithdrawalPage> {
             const Text('ઉપાડ ઉમેરો'),
       ),
     );
+  }
+
+  double _toDouble(dynamic value) {
+    if (value is num) {
+      return value.toDouble();
+    }
+
+    return double.tryParse(
+          value?.toString() ?? '',
+        ) ??
+        0;
   }
 }
