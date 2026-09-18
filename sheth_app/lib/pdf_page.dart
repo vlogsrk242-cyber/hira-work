@@ -17,12 +17,8 @@ class _PdfPageState extends State<PdfPage> {
 
   late final String userUid;
 
-  late final Stream<QuerySnapshot<Map<String, dynamic>>>
-      _workersStream;
-
-  late final Stream<QuerySnapshot<Map<String, dynamic>>>
-      _worksStream;
-
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _workersStream;
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _worksStream;
   late final Stream<QuerySnapshot<Map<String, dynamic>>>
       _withdrawalsStream;
 
@@ -177,8 +173,7 @@ class _PdfPageState extends State<PdfPage> {
       withdrawalTotal += _toDouble(withdrawal['amount']);
     }
 
-    final balanceTotal =
-        workTotal - withdrawalTotal;
+    final balanceTotal = workTotal - withdrawalTotal;
 
     final pdf = pw.Document(
       theme: pw.ThemeData.withFont(
@@ -199,9 +194,7 @@ class _PdfPageState extends State<PdfPage> {
                 fontWeight: pw.FontWeight.bold,
               ),
             ),
-
             pw.SizedBox(height: 8),
-
             pw.Text(
               'કારીગર: ${selectedWorker ?? ''}',
               style: pw.TextStyle(
@@ -209,9 +202,7 @@ class _PdfPageState extends State<PdfPage> {
                 fontWeight: pw.FontWeight.bold,
               ),
             ),
-
             pw.SizedBox(height: 20),
-
             if (works.isNotEmpty) ...[
               pw.Text(
                 'કામની વિગતો',
@@ -220,9 +211,7 @@ class _PdfPageState extends State<PdfPage> {
                   fontWeight: pw.FontWeight.bold,
                 ),
               ),
-
               pw.SizedBox(height: 8),
-
               pw.Table.fromTextArray(
                 headers: const [
                   'તારીખ',
@@ -232,10 +221,8 @@ class _PdfPageState extends State<PdfPage> {
                   'કામ',
                 ],
                 data: works.map((work) {
-                  final diamonds =
-                      _toDouble(work['diamonds']);
-                  final rate =
-                      _toDouble(work['rate']);
+                  final diamonds = _toDouble(work['diamonds']);
+                  final rate = _toDouble(work['rate']);
 
                   return [
                     (work['date'] ?? '').toString(),
@@ -251,63 +238,45 @@ class _PdfPageState extends State<PdfPage> {
                 cellStyle: const pw.TextStyle(
                   fontSize: 9,
                 ),
-                cellPadding:
-                    const pw.EdgeInsets.all(5),
+                cellPadding: const pw.EdgeInsets.all(5),
               ),
-
               pw.SizedBox(height: 20),
             ],
-
             pw.Container(
-              padding:
-                  const pw.EdgeInsets.all(12),
+              padding: const pw.EdgeInsets.all(12),
               decoration: pw.BoxDecoration(
                 border: pw.Border.all(
                   width: 1,
                 ),
               ),
               child: pw.Column(
-                crossAxisAlignment:
-                    pw.CrossAxisAlignment.start,
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
                   pw.Text(
                     'સારાંશ',
                     style: pw.TextStyle(
                       fontSize: 16,
-                      fontWeight:
-                          pw.FontWeight.bold,
+                      fontWeight: pw.FontWeight.bold,
                     ),
                   ),
-
                   pw.SizedBox(height: 10),
-
                   pw.Text(
                     'કુલ હીરા: '
                     '${diamondsTotal.toStringAsFixed(0)}',
                   ),
-
                   pw.SizedBox(height: 6),
-
                   pw.Text(
-                    'કુલ કામ: '
-                    '${money(workTotal)}',
+                    'કુલ કામ: ${money(workTotal)}',
                   ),
-
                   pw.SizedBox(height: 6),
-
                   pw.Text(
-                    'કુલ ઉપાડ: '
-                    '${money(withdrawalTotal)}',
+                    'કુલ ઉપાડ: ${money(withdrawalTotal)}',
                   ),
-
                   pw.SizedBox(height: 6),
-
                   pw.Text(
-                    'બાકી રકમ: '
-                    '${money(balanceTotal)}',
+                    'બાકી રકમ: ${money(balanceTotal)}',
                     style: pw.TextStyle(
-                      fontWeight:
-                          pw.FontWeight.bold,
+                      fontWeight: pw.FontWeight.bold,
                     ),
                   ),
                 ],
@@ -325,8 +294,7 @@ class _PdfPageState extends State<PdfPage> {
                 'ઉપાડની વિગતો',
                 style: pw.TextStyle(
                   fontSize: 16,
-                  fontWeight:
-                      pw.FontWeight.bold,
+                  fontWeight: pw.FontWeight.bold,
                 ),
               ),
             );
@@ -345,10 +313,8 @@ class _PdfPageState extends State<PdfPage> {
                 data: withdrawals.map(
                   (withdrawal) {
                     return [
-                      (withdrawal['date'] ?? '')
-                          .toString(),
-                      (withdrawal['section'] ?? '')
-                          .toString(),
+                      (withdrawal['date'] ?? '').toString(),
+                      (withdrawal['section'] ?? '').toString(),
                       money(
                         _toDouble(
                           withdrawal['amount'],
@@ -358,15 +324,12 @@ class _PdfPageState extends State<PdfPage> {
                   },
                 ).toList(),
                 headerStyle: pw.TextStyle(
-                  fontWeight:
-                      pw.FontWeight.bold,
+                  fontWeight: pw.FontWeight.bold,
                 ),
-                cellStyle:
-                    const pw.TextStyle(
+                cellStyle: const pw.TextStyle(
                   fontSize: 9,
                 ),
-                cellPadding:
-                    const pw.EdgeInsets.all(5),
+                cellPadding: const pw.EdgeInsets.all(5),
               ),
             );
           }
@@ -464,10 +427,9 @@ class _PdfPageState extends State<PdfPage> {
 
       final bytes = await pdf.save();
 
-      final safeWorkerName =
-          selectedWorker!
-              .replaceAll(' ', '_')
-              .replaceAll('/', '_');
+      final safeWorkerName = selectedWorker!
+          .replaceAll(' ', '_')
+          .replaceAll('/', '_');
 
       await Printing.sharePdf(
         bytes: bytes,
@@ -532,8 +494,10 @@ class _PdfPageState extends State<PdfPage> {
         final workerDocs =
             workerSnapshot.data?.docs ?? [];
 
+        // FIX: QueryDocumentSnapshotમાંથી data() લઈને
+        // _workerName()માં Map મોકલવામાં આવે છે.
         final workerNames = workerDocs
-            .map(_workerName)
+            .map((doc) => _workerName(doc.data()))
             .where((name) => name.isNotEmpty)
             .toList(growable: false);
 
@@ -583,14 +547,12 @@ class _PdfPageState extends State<PdfPage> {
                   );
                 }
 
-                if (withdrawalsSnapshot
-                            .connectionState ==
+                if (withdrawalsSnapshot.connectionState ==
                         ConnectionState.waiting &&
                     !withdrawalsSnapshot.hasData) {
                   return const Scaffold(
                     body: Center(
-                      child:
-                          CircularProgressIndicator(),
+                      child: CircularProgressIndicator(),
                     ),
                   );
                 }
@@ -599,8 +561,7 @@ class _PdfPageState extends State<PdfPage> {
                     worksSnapshot.data?.docs ?? [];
 
                 final withdrawalDocs =
-                    withdrawalsSnapshot.data?.docs ??
-                        [];
+                    withdrawalsSnapshot.data?.docs ?? [];
 
                 final works =
                     _workerWorks(workDocs);
@@ -627,22 +588,19 @@ class _PdfPageState extends State<PdfPage> {
                     title: const Text(
                       '📄 PDF Report',
                       style: TextStyle(
-                        fontWeight:
-                            FontWeight.bold,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                     centerTitle: true,
                   ),
                   body: SafeArea(
                     child: SingleChildScrollView(
-                      padding:
-                          const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(16),
                       child: Column(
                         crossAxisAlignment:
                             CrossAxisAlignment.start,
                         children: [
-                          DropdownButtonFormField<
-                              String>(
+                          DropdownButtonFormField<String>(
                             value: workerNames.contains(
                               selectedWorker,
                             )
@@ -659,8 +617,7 @@ class _PdfPageState extends State<PdfPage> {
                             ),
                             items: workerNames.map(
                               (name) {
-                                return DropdownMenuItem<
-                                    String>(
+                                return DropdownMenuItem<String>(
                                   value: name,
                                   child: Text(name),
                                 );
@@ -668,8 +625,7 @@ class _PdfPageState extends State<PdfPage> {
                             ).toList(),
                             onChanged: (value) {
                               setState(() {
-                                selectedWorker =
-                                    value;
+                                selectedWorker = value;
                               });
                             },
                           ),
@@ -686,64 +642,43 @@ class _PdfPageState extends State<PdfPage> {
 
                           const SizedBox(height: 20),
 
-                          if (selectedWorker !=
-                              null) ...[
+                          if (selectedWorker != null) ...[
                             Card(
                               elevation: 2,
                               child: Padding(
                                 padding:
-                                    const EdgeInsets
-                                        .all(16),
+                                    const EdgeInsets.all(16),
                                 child: Column(
                                   children: [
                                     const Icon(
                                       Icons.person,
                                       size: 45,
                                     ),
-
-                                    const SizedBox(
-                                      height: 8,
-                                    ),
-
+                                    const SizedBox(height: 8),
                                     Text(
                                       selectedWorker!,
                                       style:
                                           const TextStyle(
                                         fontSize: 22,
                                         fontWeight:
-                                            FontWeight
-                                                .bold,
+                                            FontWeight.bold,
                                       ),
                                     ),
-
-                                    const SizedBox(
-                                      height: 18,
-                                    ),
-
+                                    const SizedBox(height: 18),
                                     _summaryRow(
                                       'કુલ હીરા',
                                       totalDiamonds
-                                          .toStringAsFixed(
-                                        0,
-                                      ),
+                                          .toStringAsFixed(0),
                                     ),
-
                                     _summaryRow(
                                       'કુલ કામ',
-                                      money(
-                                        totalWork,
-                                      ),
+                                      money(totalWork),
                                     ),
-
                                     _summaryRow(
                                       'કુલ ઉપાડ',
-                                      money(
-                                        totalWithdrawal,
-                                      ),
+                                      money(totalWithdrawal),
                                     ),
-
                                     const Divider(),
-
                                     _summaryRow(
                                       'બાકી રકમ',
                                       money(balance),
@@ -757,30 +692,23 @@ class _PdfPageState extends State<PdfPage> {
                             const SizedBox(height: 20),
 
                             if (works.isNotEmpty)
-                              _buildWorkDetails(
-                                works,
-                              ),
+                              _buildWorkDetails(works),
 
                             if (works.isNotEmpty)
-                              const SizedBox(
-                                height: 12,
-                              ),
+                              const SizedBox(height: 12),
 
                             if (withdrawals.isNotEmpty)
                               _buildWithdrawalDetails(
                                 withdrawals,
                               ),
 
-                            const SizedBox(
-                              height: 20,
-                            ),
+                            const SizedBox(height: 20),
 
                             SizedBox(
                               width: double.infinity,
                               height: 52,
                               child:
-                                  ElevatedButton
-                                      .icon(
+                                  ElevatedButton.icon(
                                 onPressed: () =>
                                     previewPdf(
                                   works: works,
@@ -788,8 +716,7 @@ class _PdfPageState extends State<PdfPage> {
                                       withdrawals,
                                 ),
                                 icon: const Icon(
-                                  Icons
-                                      .picture_as_pdf,
+                                  Icons.picture_as_pdf,
                                 ),
                                 label: const Text(
                                   'PDF બનાવો / Print',
@@ -800,16 +727,13 @@ class _PdfPageState extends State<PdfPage> {
                               ),
                             ),
 
-                            const SizedBox(
-                              height: 12,
-                            ),
+                            const SizedBox(height: 12),
 
                             SizedBox(
                               width: double.infinity,
                               height: 52,
                               child:
-                                  OutlinedButton
-                                      .icon(
+                                  OutlinedButton.icon(
                                 onPressed: () =>
                                     sharePdf(
                                   works: works,
@@ -846,8 +770,7 @@ class _PdfPageState extends State<PdfPage> {
   ) {
     return Card(
       child: Padding(
-        padding:
-            const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment:
               CrossAxisAlignment.start,
@@ -856,17 +779,15 @@ class _PdfPageState extends State<PdfPage> {
               'કામની વિગતો',
               style: TextStyle(
                 fontSize: 18,
-                fontWeight:
-                    FontWeight.bold,
+                fontWeight: FontWeight.bold,
               ),
             ),
-
             const SizedBox(height: 10),
-
             ...works.map(
               (work) {
                 final diamonds =
                     _toDouble(work['diamonds']);
+
                 final rate =
                     _toDouble(work['rate']);
 
@@ -899,8 +820,7 @@ class _PdfPageState extends State<PdfPage> {
   ) {
     return Card(
       child: Padding(
-        padding:
-            const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment:
               CrossAxisAlignment.start,
@@ -909,13 +829,10 @@ class _PdfPageState extends State<PdfPage> {
               'ઉપાડની વિગતો',
               style: TextStyle(
                 fontSize: 18,
-                fontWeight:
-                    FontWeight.bold,
+                fontWeight: FontWeight.bold,
               ),
             ),
-
             const SizedBox(height: 10),
-
             ...withdrawals.map(
               (withdrawal) {
                 return ListTile(
@@ -947,9 +864,7 @@ class _PdfPageState extends State<PdfPage> {
   }) {
     return Padding(
       padding:
-          const EdgeInsets.symmetric(
-        vertical: 7,
-      ),
+          const EdgeInsets.symmetric(vertical: 7),
       child: Row(
         mainAxisAlignment:
             MainAxisAlignment.spaceBetween,
