@@ -19,6 +19,8 @@ class _LoginPageState extends State<LoginPage> {
   bool obscurePassword = true;
 
   Future<void> login() async {
+    if (isLoading) return;
+
     final email = emailController.text.trim();
     final password = passwordController.text;
 
@@ -26,6 +28,8 @@ class _LoginPageState extends State<LoginPage> {
       showMessage('Gmail ID અને Password નાખો');
       return;
     }
+
+    FocusScope.of(context).unfocus();
 
     setState(() {
       isLoading = true;
@@ -39,8 +43,7 @@ class _LoginPageState extends State<LoginPage> {
 
       if (!mounted) return;
 
-      Navigator.pushReplacement(
-        context,
+      Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (_) => const DashboardPage(),
         ),
@@ -50,12 +53,24 @@ class _LoginPageState extends State<LoginPage> {
 
       String message = 'Invalid Gmail/Password';
 
-      if (e.code == 'invalid-credential' ||
-          e.code == 'wrong-password' ||
-          e.code == 'user-not-found') {
-        message = 'Invalid Gmail/Password';
-      } else if (e.code == 'invalid-email') {
-        message = 'Gmail ID સાચી નથી';
+      switch (e.code) {
+        case 'invalid-credential':
+        case 'wrong-password':
+        case 'user-not-found':
+          message = 'Invalid Gmail/Password';
+          break;
+
+        case 'invalid-email':
+          message = 'Gmail ID સાચી નથી';
+          break;
+
+        case 'user-disabled':
+          message = 'આ Account બંધ કરવામાં આવ્યું છે';
+          break;
+
+        case 'network-request-failed':
+          message = 'Internet connection તપાસો';
+          break;
       }
 
       showMessage(message);
@@ -73,9 +88,23 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+        ),
+      );
+  }
+
+  void openSignup() {
+    if (isLoading) return;
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const SignupPage(),
       ),
     );
   }
@@ -125,6 +154,8 @@ class _LoginPageState extends State<LoginPage> {
                 TextField(
                   controller: emailController,
                   keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                  autocorrect: false,
                   decoration: const InputDecoration(
                     labelText: 'Gmail ID',
                     hintText: 'example@gmail.com',
@@ -138,6 +169,8 @@ class _LoginPageState extends State<LoginPage> {
                 TextField(
                   controller: passwordController,
                   obscureText: obscurePassword,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => login(),
                   decoration: InputDecoration(
                     labelText: 'Password',
                     prefixIcon: const Icon(Icons.lock),
@@ -174,7 +207,9 @@ class _LoginPageState extends State<LoginPage> {
                           )
                         : const Text(
                             'LOGIN',
-                            style: TextStyle(fontSize: 17),
+                            style: TextStyle(
+                              fontSize: 17,
+                            ),
                           ),
                   ),
                 ),
@@ -182,17 +217,12 @@ class _LoginPageState extends State<LoginPage> {
                 const SizedBox(height: 15),
 
                 TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const SignupPage(),
-                      ),
-                    );
-                  },
+                  onPressed: isLoading ? null : openSignup,
                   child: const Text(
                     'નવું Account બનાવો — SIGNUP',
-                    style: TextStyle(fontSize: 16),
+                    style: TextStyle(
+                      fontSize: 16,
+                    ),
                   ),
                 ),
               ],
