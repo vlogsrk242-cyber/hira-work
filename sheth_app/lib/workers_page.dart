@@ -10,10 +10,7 @@ class WorkersPage extends StatefulWidget {
 }
 
 class _WorkersPageState extends State<WorkersPage> {
-  final FirebaseFirestore firestore =
-      FirebaseFirestore.instance;
-
-  bool saving = false;
+  final FirebaseFirestore firestore = FirebaseFirestore.instance;
 
   late final String userUid;
 
@@ -52,11 +49,93 @@ class _WorkersPageState extends State<WorkersPage> {
 
     await showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (dialogContext) {
-        bool dialogSaving = false;
+        bool saving = false;
 
         return StatefulBuilder(
           builder: (context, setDialogState) {
+            Future<void> save() async {
+              if (saving) return;
+
+              final name = nameController.text.trim();
+              final mobile = mobileController.text.trim();
+              final factory = factoryController.text.trim();
+
+              if (name.isEmpty ||
+                  mobile.isEmpty ||
+                  factory.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('બધી માહિતી ભરો'),
+                  ),
+                );
+                return;
+              }
+
+              if (userUid.isEmpty) {
+                Navigator.pop(dialogContext);
+
+                _showMessage(
+                  'કૃપા કરીને પહેલા Login કરો',
+                );
+                return;
+              }
+
+              FocusScope.of(context).unfocus();
+
+              setDialogState(() {
+                saving = true;
+              });
+
+              try {
+                final data = <String, dynamic>{
+                  'ownerUid': userUid,
+                  'name': name,
+                  'mobile': mobile,
+                  'factoryNumber': factory,
+                  'updatedAt':
+                      FieldValue.serverTimestamp(),
+                };
+
+                if (docId == null) {
+                  await firestore
+                      .collection('karigars')
+                      .add({
+                    ...data,
+                    'createdAt':
+                        FieldValue.serverTimestamp(),
+                  });
+                } else {
+                  await firestore
+                      .collection('karigars')
+                      .doc(docId)
+                      .update(data);
+                }
+
+                if (!mounted) return;
+
+                // Firebase save complete થતા જ dialog બંધ
+                Navigator.pop(dialogContext);
+
+                _showMessage(
+                  docId == null
+                      ? 'કારીગર Firebaseમાં Save થયો'
+                      : 'કારીગર Update થયો',
+                );
+              } catch (e) {
+                if (!mounted) return;
+
+                setDialogState(() {
+                  saving = false;
+                });
+
+                _showMessage(
+                  'Databaseમાં Save કરવામાં ભૂલ થઈ',
+                );
+              }
+            }
+
             return AlertDialog(
               title: Text(
                 docId == null
@@ -96,6 +175,7 @@ class _WorkersPageState extends State<WorkersPage> {
                     TextField(
                       controller: factoryController,
                       textInputAction: TextInputAction.done,
+                      onSubmitted: (_) => save(),
                       decoration: const InputDecoration(
                         labelText: 'કારખાના નંબર',
                         prefixIcon: Icon(Icons.business),
@@ -107,7 +187,7 @@ class _WorkersPageState extends State<WorkersPage> {
               ),
               actions: [
                 TextButton(
-                  onPressed: dialogSaving
+                  onPressed: saving
                       ? null
                       : () {
                           Navigator.pop(dialogContext);
@@ -116,97 +196,8 @@ class _WorkersPageState extends State<WorkersPage> {
                 ),
 
                 ElevatedButton(
-                  onPressed: dialogSaving
-                      ? null
-                      : () async {
-                          final name =
-                              nameController.text.trim();
-
-                          final mobile =
-                              mobileController.text.trim();
-
-                          final factory =
-                              factoryController.text.trim();
-
-                          if (name.isEmpty ||
-                              mobile.isEmpty ||
-                              factory.isEmpty) {
-                            ScaffoldMessenger.of(context)
-                                .showSnackBar(
-                              const SnackBar(
-                                content:
-                                    Text('બધી માહિતી ભરો'),
-                              ),
-                            );
-                            return;
-                          }
-
-                          if (userUid.isEmpty) {
-                            Navigator.pop(dialogContext);
-
-                            _showMessage(
-                              'કૃપા કરીને પહેલા Login કરો',
-                            );
-                            return;
-                          }
-
-                          setDialogState(() {
-                            dialogSaving = true;
-                          });
-
-                          try {
-                            final data = {
-                              'ownerUid': userUid,
-                              'name': name,
-                              'mobile': mobile,
-                              'factoryNumber': factory,
-                              'updatedAt':
-                                  FieldValue.serverTimestamp(),
-                            };
-
-                            if (docId == null) {
-                              await firestore
-                                  .collection('karigars')
-                                  .add({
-                                ...data,
-                                'createdAt':
-                                    FieldValue.serverTimestamp(),
-                              });
-
-                              if (!mounted) return;
-
-                              Navigator.pop(dialogContext);
-
-                              _showMessage(
-                                'કારીગર Firebaseમાં Save થયો',
-                              );
-                            } else {
-                              await firestore
-                                  .collection('karigars')
-                                  .doc(docId)
-                                  .update(data);
-
-                              if (!mounted) return;
-
-                              Navigator.pop(dialogContext);
-
-                              _showMessage(
-                                'કારીગર Update થયો',
-                              );
-                            }
-                          } catch (e) {
-                            if (!mounted) return;
-
-                            setDialogState(() {
-                              dialogSaving = false;
-                            });
-
-                            _showMessage(
-                              'Databaseમાં Save કરવામાં ભૂલ થઈ',
-                            );
-                          }
-                        },
-                  child: dialogSaving
+                  onPressed: saving ? null : save,
+                  child: saving
                       ? const SizedBox(
                           width: 20,
                           height: 20,
@@ -232,13 +223,46 @@ class _WorkersPageState extends State<WorkersPage> {
     String docId,
     String workerName,
   ) async {
-    bool deleting = false;
-
     await showDialog(
       context: context,
       builder: (dialogContext) {
+        bool deleting = false;
+
         return StatefulBuilder(
           builder: (context, setDialogState) {
+            Future<void> delete() async {
+              if (deleting) return;
+
+              setDialogState(() {
+                deleting = true;
+              });
+
+              try {
+                await firestore
+                    .collection('karigars')
+                    .doc(docId)
+                    .delete();
+
+                if (!mounted) return;
+
+                Navigator.pop(dialogContext);
+
+                _showMessage(
+                  'કારીગર Delete થઈ ગયો',
+                );
+              } catch (e) {
+                if (!mounted) return;
+
+                setDialogState(() {
+                  deleting = false;
+                });
+
+                _showMessage(
+                  'Delete કરવામાં ભૂલ થઈ',
+                );
+              }
+            }
+
             return AlertDialog(
               title: const Text(
                 'કારીગર Delete કરો?',
@@ -255,40 +279,8 @@ class _WorkersPageState extends State<WorkersPage> {
                         },
                   child: const Text('Cancel'),
                 ),
-
                 ElevatedButton(
-                  onPressed: deleting
-                      ? null
-                      : () async {
-                          setDialogState(() {
-                            deleting = true;
-                          });
-
-                          try {
-                            await firestore
-                                .collection('karigars')
-                                .doc(docId)
-                                .delete();
-
-                            if (!mounted) return;
-
-                            Navigator.pop(dialogContext);
-
-                            _showMessage(
-                              'કારીગર Delete થઈ ગયો',
-                            );
-                          } catch (e) {
-                            if (!mounted) return;
-
-                            setDialogState(() {
-                              deleting = false;
-                            });
-
-                            _showMessage(
-                              'Delete કરવામાં ભૂલ થઈ',
-                            );
-                          }
-                        },
+                  onPressed: deleting ? null : delete,
                   child: deleting
                       ? const SizedBox(
                           width: 20,
@@ -315,6 +307,7 @@ class _WorkersPageState extends State<WorkersPage> {
       ..showSnackBar(
         SnackBar(
           content: Text(message),
+          duration: const Duration(seconds: 2),
         ),
       );
   }
@@ -381,10 +374,14 @@ class _WorkersPageState extends State<WorkersPage> {
               final doc = docs[index];
               final data = doc.data();
 
-              final name = data['name'] ?? '';
-              final mobile = data['mobile'] ?? '';
+              final name =
+                  data['name']?.toString() ?? '';
+
+              final mobile =
+                  data['mobile']?.toString() ?? '';
+
               final factory =
-                  data['factoryNumber'] ?? '';
+                  data['factoryNumber']?.toString() ?? '';
 
               return Card(
                 child: ListTile(
@@ -422,7 +419,6 @@ class _WorkersPageState extends State<WorkersPage> {
                         );
                       }
                     },
-
                     itemBuilder: (context) => const [
                       PopupMenuItem(
                         value: 'edit',
