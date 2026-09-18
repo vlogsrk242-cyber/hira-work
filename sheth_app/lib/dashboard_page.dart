@@ -47,9 +47,7 @@ class _DashboardPageState extends State<DashboardPage> {
       MaterialPageRoute(
         builder: (_) => page,
       ),
-    ).then((_) {
-      setState(() {});
-    });
+    );
   }
 
   String money(double value) {
