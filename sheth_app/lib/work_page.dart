@@ -31,17 +31,27 @@ class _WorkPageState extends State<WorkPage> {
     'મથાળા',
   ];
 
+  late final String userUid;
+
+  late final Stream<QuerySnapshot<Map<String, dynamic>>>
+      _workersStream;
+
+  late final Stream<QuerySnapshot<Map<String, dynamic>>>
+      _worksStream;
+
   String selectedSection = 'તળીયા';
   String selectedDate = '';
   String? selectedWorker;
   String? editingDocId;
 
-  String get currentUid =>
-      FirebaseAuth.instance.currentUser?.uid ?? '';
+  bool saving = false;
 
   @override
   void initState() {
     super.initState();
+
+    userUid =
+        FirebaseAuth.instance.currentUser?.uid ?? '';
 
     selectedSection =
         widget.initialSection ?? 'તળીયા';
@@ -49,6 +59,24 @@ class _WorkPageState extends State<WorkPage> {
     selectedDate = DateFormat(
       'dd-MM-yyyy',
     ).format(DateTime.now());
+
+    if (userUid.isNotEmpty) {
+      _workersStream = firestore
+          .collection('karigars')
+          .where(
+            'ownerUid',
+            isEqualTo: userUid,
+          )
+          .snapshots();
+
+      _worksStream = firestore
+          .collection('works')
+          .where(
+            'ownerUid',
+            isEqualTo: userUid,
+          )
+          .snapshots();
+    }
   }
 
   @override
@@ -76,36 +104,6 @@ class _WorkPageState extends State<WorkPage> {
     return enteredDiamonds * enteredRate;
   }
 
-  Stream<QuerySnapshot<Map<String, dynamic>>>
-      get workersStream {
-    if (currentUid.isEmpty) {
-      return const Stream.empty();
-    }
-
-    return firestore
-        .collection('karigars')
-        .where(
-          'ownerUid',
-          isEqualTo: currentUid,
-        )
-        .snapshots();
-  }
-
-  Stream<QuerySnapshot<Map<String, dynamic>>>
-      get worksStream {
-    if (currentUid.isEmpty) {
-      return const Stream.empty();
-    }
-
-    return firestore
-        .collection('works')
-        .where(
-          'ownerUid',
-          isEqualTo: currentUid,
-        )
-        .snapshots();
-  }
-
   Future<void> selectDate() async {
     DateTime initialDate = DateTime.now();
 
@@ -121,7 +119,7 @@ class _WorkPageState extends State<WorkPage> {
       lastDate: DateTime(2100),
     );
 
-    if (pickedDate != null) {
+    if (pickedDate != null && mounted) {
       setState(() {
         selectedDate = DateFormat(
           'dd-MM-yyyy',
@@ -131,7 +129,9 @@ class _WorkPageState extends State<WorkPage> {
   }
 
   Future<void> saveWork() async {
-    if (currentUid.isEmpty) {
+    if (saving) return;
+
+    if (userUid.isEmpty) {
       _showMessage('કૃપા કરીને પહેલા Login કરો');
       return;
     }
@@ -160,9 +160,15 @@ class _WorkPageState extends State<WorkPage> {
       return;
     }
 
+    FocusScope.of(context).unfocus();
+
+    setState(() {
+      saving = true;
+    });
+
     try {
       final data = <String, dynamic>{
-        'ownerUid': currentUid,
+        'ownerUid': userUid,
         'section': selectedSection,
         'date': selectedDate,
         'worker': selectedWorker,
@@ -180,6 +186,8 @@ class _WorkPageState extends State<WorkPage> {
             .collection('works')
             .add(data);
 
+        if (!mounted) return;
+
         _showMessage(
           'કામ Firebaseમાં સાચવવામાં આવ્યું',
         );
@@ -188,6 +196,8 @@ class _WorkPageState extends State<WorkPage> {
             .collection('works')
             .doc(editingDocId)
             .update(data);
+
+        if (!mounted) return;
 
         _showMessage(
           'કામ Firebaseમાં Update કરવામાં આવ્યું',
@@ -198,8 +208,15 @@ class _WorkPageState extends State<WorkPage> {
 
       setState(() {
         clearForm();
+        saving = false;
       });
     } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        saving = false;
+      });
+
       _showMessage(
         'કામ Save કરવામાં ભૂલ થઈ',
       );
@@ -313,15 +330,31 @@ class _WorkPageState extends State<WorkPage> {
   void _showMessage(String message) {
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-      ),
-    );
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+        ),
+      );
   }
 
   @override
   Widget build(BuildContext context) {
+    if (userUid.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('કામની નોંધ'),
+          centerTitle: true,
+        ),
+        body: const Center(
+          child: Text(
+            'કૃપા કરીને પહેલા Login કરો',
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -335,7 +368,7 @@ class _WorkPageState extends State<WorkPage> {
       body: SafeArea(
         child: StreamBuilder<
             QuerySnapshot<Map<String, dynamic>>>(
-          stream: workersStream,
+          stream: _workersStream,
           builder: (context, workerSnapshot) {
             if (workerSnapshot.hasError) {
               return const Center(
@@ -346,7 +379,8 @@ class _WorkPageState extends State<WorkPage> {
             }
 
             if (workerSnapshot.connectionState ==
-                ConnectionState.waiting) {
+                    ConnectionState.waiting &&
+                !workerSnapshot.hasData) {
               return const Center(
                 child: CircularProgressIndicator(),
               );
@@ -373,7 +407,7 @@ class _WorkPageState extends State<WorkPage> {
 
             return StreamBuilder<
                 QuerySnapshot<Map<String, dynamic>>>(
-              stream: worksStream,
+              stream: _worksStream,
               builder: (context, workSnapshot) {
                 if (workSnapshot.hasError) {
                   return const Center(
@@ -384,7 +418,8 @@ class _WorkPageState extends State<WorkPage> {
                 }
 
                 if (workSnapshot.connectionState ==
-                    ConnectionState.waiting) {
+                        ConnectionState.waiting &&
+                    !workSnapshot.hasData) {
                   return const Center(
                     child: CircularProgressIndicator(),
                   );
@@ -619,16 +654,30 @@ class _WorkPageState extends State<WorkPage> {
                                 height: 50,
                                 child:
                                     ElevatedButton.icon(
-                                  onPressed: saveWork,
-                                  icon: Icon(
-                                    editingDocId == null
-                                        ? Icons.save
-                                        : Icons.edit,
-                                  ),
+                                  onPressed:
+                                      saving ? null : saveWork,
+                                  icon: saving
+                                      ? const SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child:
+                                              CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                      : Icon(
+                                          editingDocId ==
+                                                  null
+                                              ? Icons.save
+                                              : Icons.edit,
+                                        ),
                                   label: Text(
-                                    editingDocId == null
-                                        ? 'કામ Save કરો'
-                                        : 'કામ Update કરો',
+                                    saving
+                                        ? 'Saving...'
+                                        : editingDocId ==
+                                                null
+                                            ? 'કામ Save કરો'
+                                            : 'કામ Update કરો',
                                   ),
                                 ),
                               ),
@@ -640,11 +689,13 @@ class _WorkPageState extends State<WorkPage> {
                                   height: 45,
                                   child:
                                       OutlinedButton(
-                                    onPressed: () {
-                                      setState(() {
-                                        clearForm();
-                                      });
-                                    },
+                                    onPressed: saving
+                                        ? null
+                                        : () {
+                                            setState(() {
+                                              clearForm();
+                                            });
+                                          },
                                     child: const Text(
                                       'Cancel Edit',
                                     ),
