@@ -84,6 +84,9 @@ class _WorkersPageState extends State<WorkersPage> {
 
               FocusScope.of(context).unfocus();
 
+              // Firestore network ફરી enable કરો
+              await firestore.enableNetwork();
+
               setDialogState(() {
                 saving = true;
               });
