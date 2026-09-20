@@ -11,7 +11,12 @@ workflows:
       - name: Generate Android project
         script: |
           cd sheth_app
-          flutter create --platforms=android --org com.hirawork .
+
+          flutter create \
+            --platforms=android \
+            --org com.hirawork \
+            --project-name hira_work_sheth \
+            .
 
           cp google-services.json android/app/google-services.json
 
@@ -49,10 +54,42 @@ workflows:
           cd sheth_app
           flutter pub get
 
+      - name: Check Firebase configuration
+        script: |
+          cd sheth_app
+
+          echo "Checking google-services.json..."
+
+          if [ ! -f google-services.json ]; then
+            echo "ERROR: google-services.json not found!"
+            exit 1
+          fi
+
+          echo "Firebase configuration file found."
+
+          python3 - <<'PY'
+          import json
+
+          with open("google-services.json", "r") as f:
+              data = json.load(f)
+
+          project_id = data.get("project_info", {}).get("project_id", "")
+          print("Firebase Project ID:", project_id)
+
+          for client in data.get("client", []):
+              package_name = (
+                  client.get("client_info", {})
+                  .get("android_client_info", {})
+                  .get("package_name", "")
+              )
+              print("Firebase Android Package:", package_name)
+          PY
+
       - name: Get SHA-1
         script: |
           cd sheth_app
           flutter build apk --debug
+
           keytool -list -v \
             -keystore ~/.android/debug.keystore \
             -alias androiddebugkey \
