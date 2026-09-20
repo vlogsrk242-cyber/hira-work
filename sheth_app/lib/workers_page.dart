@@ -84,8 +84,44 @@ class _WorkersPageState extends State<WorkersPage> {
 
               FocusScope.of(context).unfocus();
 
-              // Firestore network ફરી enable કરો
-              await firestore.enableNetwork();
+              // ==========================================
+              // FIREBASE DIAGNOSTIC
+              // ==========================================
+              try {
+                await firestore.enableNetwork();
+
+                final currentUser =
+                    FirebaseAuth.instance.currentUser;
+
+                debugPrint(
+                  '========== FIREBASE DEBUG ==========',
+                );
+
+                debugPrint(
+                  'Auth User: ${currentUser != null}',
+                );
+
+                debugPrint(
+                  'Auth UID: ${currentUser?.uid}',
+                );
+
+                debugPrint(
+                  'Firestore App: ${firestore.app.name}',
+                );
+
+                debugPrint(
+                  'Firestore Project ID: '
+                  '${firestore.app.options.projectId}',
+                );
+
+                debugPrint(
+                  '====================================',
+                );
+              } catch (e) {
+                debugPrint(
+                  'Firestore Network Error: $e',
+                );
+              }
 
               setDialogState(() {
                 saving = true;
@@ -101,6 +137,9 @@ class _WorkersPageState extends State<WorkersPage> {
                       FieldValue.serverTimestamp(),
                 };
 
+                // ==========================================
+                // NEW KARIGAR
+                // ==========================================
                 if (docId == null) {
                   await firestore
                       .collection('karigars')
@@ -108,28 +147,17 @@ class _WorkersPageState extends State<WorkersPage> {
                     ...data,
                     'createdAt':
                         FieldValue.serverTimestamp(),
-                  })
-                      .timeout(
-                    const Duration(seconds: 15),
-                    onTimeout: () {
-                      throw Exception(
-                        'Firestore connection timeout: 15 seconds સુધી Firebase તરફથી જવાબ મળ્યો નથી.',
-                      );
-                    },
-                  );
-                } else {
+                  });
+                }
+
+                // ==========================================
+                // UPDATE KARIGAR
+                // ==========================================
+                else {
                   await firestore
                       .collection('karigars')
                       .doc(docId)
-                      .update(data)
-                      .timeout(
-                    const Duration(seconds: 15),
-                    onTimeout: () {
-                      throw Exception(
-                        'Firestore connection timeout: 15 seconds સુધી Firebase તરફથી જવાબ મળ્યો નથી.',
-                      );
-                    },
-                  );
+                      .update(data);
                 }
 
                 if (!mounted) return;
@@ -147,6 +175,22 @@ class _WorkersPageState extends State<WorkersPage> {
                 setDialogState(() {
                   saving = false;
                 });
+
+                debugPrint(
+                  '========== FIRESTORE ERROR ==========',
+                );
+
+                debugPrint(
+                  'Error Type: ${e.runtimeType}',
+                );
+
+                debugPrint(
+                  'Error: $e',
+                );
+
+                debugPrint(
+                  '=====================================',
+                );
 
                 _showMessage(
                   'Firebase Error: $e',
@@ -166,11 +210,15 @@ class _WorkersPageState extends State<WorkersPage> {
                   children: [
                     TextField(
                       controller: nameController,
-                      textInputAction: TextInputAction.next,
-                      decoration: const InputDecoration(
+                      textInputAction:
+                          TextInputAction.next,
+                      decoration:
+                          const InputDecoration(
                         labelText: 'કારીગરનું નામ',
-                        prefixIcon: Icon(Icons.person),
-                        border: OutlineInputBorder(),
+                        prefixIcon:
+                            Icon(Icons.person),
+                        border:
+                            OutlineInputBorder(),
                       ),
                     ),
 
@@ -178,26 +226,37 @@ class _WorkersPageState extends State<WorkersPage> {
 
                     TextField(
                       controller: mobileController,
-                      keyboardType: TextInputType.phone,
-                      textInputAction: TextInputAction.next,
+                      keyboardType:
+                          TextInputType.phone,
+                      textInputAction:
+                          TextInputAction.next,
                       maxLength: 10,
-                      decoration: const InputDecoration(
+                      decoration:
+                          const InputDecoration(
                         labelText: 'મોબાઈલ નંબર',
-                        prefixIcon: Icon(Icons.phone),
-                        border: OutlineInputBorder(),
+                        prefixIcon:
+                            Icon(Icons.phone),
+                        border:
+                            OutlineInputBorder(),
                       ),
                     ),
 
                     const SizedBox(height: 12),
 
                     TextField(
-                      controller: factoryController,
-                      textInputAction: TextInputAction.done,
+                      controller:
+                          factoryController,
+                      textInputAction:
+                          TextInputAction.done,
                       onSubmitted: (_) => save(),
-                      decoration: const InputDecoration(
-                        labelText: 'કારખાના નંબર',
-                        prefixIcon: Icon(Icons.business),
-                        border: OutlineInputBorder(),
+                      decoration:
+                          const InputDecoration(
+                        labelText:
+                            'કારખાના નંબર',
+                        prefixIcon:
+                            Icon(Icons.business),
+                        border:
+                            OutlineInputBorder(),
                       ),
                     ),
                   ],
@@ -208,18 +267,23 @@ class _WorkersPageState extends State<WorkersPage> {
                   onPressed: saving
                       ? null
                       : () {
-                          Navigator.pop(dialogContext);
+                          Navigator.pop(
+                            dialogContext,
+                          );
                         },
-                  child: const Text('Cancel'),
+                  child:
+                      const Text('Cancel'),
                 ),
 
                 ElevatedButton(
-                  onPressed: saving ? null : save,
+                  onPressed:
+                      saving ? null : save,
                   child: saving
                       ? const SizedBox(
                           width: 20,
                           height: 20,
-                          child: CircularProgressIndicator(
+                          child:
+                              CircularProgressIndicator(
                             strokeWidth: 2,
                           ),
                         )
@@ -259,15 +323,7 @@ class _WorkersPageState extends State<WorkersPage> {
                 await firestore
                     .collection('karigars')
                     .doc(docId)
-                    .delete()
-                    .timeout(
-                  const Duration(seconds: 15),
-                  onTimeout: () {
-                    throw Exception(
-                      'Firestore connection timeout: 15 seconds સુધી Firebase તરફથી જવાબ મળ્યો નથી.',
-                    );
-                  },
-                );
+                    .delete();
 
                 if (!mounted) return;
 
@@ -283,6 +339,10 @@ class _WorkersPageState extends State<WorkersPage> {
                   deleting = false;
                 });
 
+                debugPrint(
+                  'Delete Error: $e',
+                );
+
                 _showMessage(
                   'Delete Error: $e',
                 );
@@ -294,25 +354,31 @@ class _WorkersPageState extends State<WorkersPage> {
                 'કારીગર Delete કરો?',
               ),
               content: Text(
-                'શું તમે "$workerName" ને Delete કરવા માંગો છો?',
+                'શું તમે "$workerName" ને '
+                'Delete કરવા માંગો છો?',
               ),
               actions: [
                 TextButton(
                   onPressed: deleting
                       ? null
                       : () {
-                          Navigator.pop(dialogContext);
+                          Navigator.pop(
+                            dialogContext,
+                          );
                         },
-                  child: const Text('Cancel'),
+                  child:
+                      const Text('Cancel'),
                 ),
 
                 ElevatedButton(
-                  onPressed: deleting ? null : delete,
+                  onPressed:
+                      deleting ? null : delete,
                   child: deleting
                       ? const SizedBox(
                           width: 20,
                           height: 20,
-                          child: CircularProgressIndicator(
+                          child:
+                              CircularProgressIndicator(
                             strokeWidth: 2,
                           ),
                         )
@@ -334,7 +400,8 @@ class _WorkersPageState extends State<WorkersPage> {
       ..showSnackBar(
         SnackBar(
           content: Text(message),
-          duration: const Duration(seconds: 5),
+          duration:
+              const Duration(seconds: 5),
         ),
       );
   }
@@ -367,10 +434,15 @@ class _WorkersPageState extends State<WorkersPage> {
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return Center(
-              child: Text(
-                'કારીગરનો ડેટા લાવવામાં ભૂલ થઈ\n\n'
-                '${snapshot.error}',
-                textAlign: TextAlign.center,
+              child: Padding(
+                padding:
+                    const EdgeInsets.all(16),
+                child: Text(
+                  'કારીગરનો ડેટા લાવવામાં ભૂલ થઈ\n\n'
+                  '${snapshot.error}',
+                  textAlign:
+                      TextAlign.center,
+                ),
               ),
             );
           }
@@ -379,11 +451,13 @@ class _WorkersPageState extends State<WorkersPage> {
                   ConnectionState.waiting &&
               !snapshot.hasData) {
             return const Center(
-              child: CircularProgressIndicator(),
+              child:
+                  CircularProgressIndicator(),
             );
           }
 
-          final docs = snapshot.data?.docs ?? [];
+          final docs =
+              snapshot.data?.docs ?? [];
 
           if (docs.isEmpty) {
             return const Center(
@@ -397,31 +471,43 @@ class _WorkersPageState extends State<WorkersPage> {
           }
 
           return ListView.builder(
-            padding: const EdgeInsets.all(12),
+            padding:
+                const EdgeInsets.all(12),
             itemCount: docs.length,
-            itemBuilder: (context, index) {
+            itemBuilder:
+                (context, index) {
               final doc = docs[index];
               final data = doc.data();
 
               final name =
-                  data['name']?.toString() ?? '';
+                  data['name']
+                          ?.toString() ??
+                      '';
 
               final mobile =
-                  data['mobile']?.toString() ?? '';
+                  data['mobile']
+                          ?.toString() ??
+                      '';
 
               final factory =
-                  data['factoryNumber']?.toString() ?? '';
+                  data['factoryNumber']
+                          ?.toString() ??
+                      '';
 
               return Card(
                 child: ListTile(
-                  leading: const CircleAvatar(
-                    child: Icon(Icons.person),
+                  leading:
+                      const CircleAvatar(
+                    child:
+                        Icon(Icons.person),
                   ),
 
                   title: Text(
                     name,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
+                    style:
+                        const TextStyle(
+                      fontWeight:
+                          FontWeight.bold,
                     ),
                   ),
 
@@ -432,30 +518,39 @@ class _WorkersPageState extends State<WorkersPage> {
 
                   isThreeLine: true,
 
-                  trailing: PopupMenuButton<String>(
-                    onSelected: (value) {
-                      if (value == 'edit') {
+                  trailing:
+                      PopupMenuButton<
+                          String>(
+                    onSelected:
+                        (value) {
+                      if (value ==
+                          'edit') {
                         saveWorker(
                           docId: doc.id,
                           worker: data,
                         );
                       }
 
-                      if (value == 'delete') {
+                      if (value ==
+                          'delete') {
                         deleteWorker(
                           doc.id,
                           name,
                         );
                       }
                     },
-                    itemBuilder: (context) => const [
+                    itemBuilder:
+                        (context) =>
+                            const [
                       PopupMenuItem(
                         value: 'edit',
-                        child: Text('Edit'),
+                        child:
+                            Text('Edit'),
                       ),
                       PopupMenuItem(
                         value: 'delete',
-                        child: Text('Delete'),
+                        child:
+                            Text('Delete'),
                       ),
                     ],
                   ),
@@ -471,8 +566,10 @@ class _WorkersPageState extends State<WorkersPage> {
         onPressed: () {
           saveWorker();
         },
-        icon: const Icon(Icons.person_add),
-        label: const Text('કારીગર ઉમેરો'),
+        icon:
+            const Icon(Icons.person_add),
+        label:
+            const Text('કારીગર ઉમેરો'),
       ),
     );
   }
