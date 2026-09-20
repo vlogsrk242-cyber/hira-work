@@ -105,12 +105,28 @@ class _WorkersPageState extends State<WorkersPage> {
                     ...data,
                     'createdAt':
                         FieldValue.serverTimestamp(),
-                  });
+                  })
+                      .timeout(
+                    const Duration(seconds: 15),
+                    onTimeout: () {
+                      throw Exception(
+                        'Firestore connection timeout: 15 seconds સુધી Firebase તરફથી જવાબ મળ્યો નથી.',
+                      );
+                    },
+                  );
                 } else {
                   await firestore
                       .collection('karigars')
                       .doc(docId)
-                      .update(data);
+                      .update(data)
+                      .timeout(
+                    const Duration(seconds: 15),
+                    onTimeout: () {
+                      throw Exception(
+                        'Firestore connection timeout: 15 seconds સુધી Firebase તરફથી જવાબ મળ્યો નથી.',
+                      );
+                    },
+                  );
                 }
 
                 if (!mounted) return;
@@ -129,7 +145,6 @@ class _WorkersPageState extends State<WorkersPage> {
                   saving = false;
                 });
 
-                // હવે સાચો Firebase error દેખાશે
                 _showMessage(
                   'Firebase Error: $e',
                 );
@@ -241,7 +256,15 @@ class _WorkersPageState extends State<WorkersPage> {
                 await firestore
                     .collection('karigars')
                     .doc(docId)
-                    .delete();
+                    .delete()
+                    .timeout(
+                  const Duration(seconds: 15),
+                  onTimeout: () {
+                    throw Exception(
+                      'Firestore connection timeout: 15 seconds સુધી Firebase તરફથી જવાબ મળ્યો નથી.',
+                    );
+                  },
+                );
 
                 if (!mounted) return;
 
@@ -279,6 +302,7 @@ class _WorkersPageState extends State<WorkersPage> {
                         },
                   child: const Text('Cancel'),
                 ),
+
                 ElevatedButton(
                   onPressed: deleting ? null : delete,
                   child: deleting
