@@ -6,8 +6,6 @@ workflows:
 
     environment:
       flutter: stable
-      groups:
-        - firebase_credentials
 
     scripts:
       - name: Generate Android project
@@ -15,7 +13,7 @@ workflows:
           cd sheth_app
           flutter create --platforms=android --org com.hirawork .
 
-          echo "$ANDROID_FIREBASE_JSON" > android/app/google-services.json
+          cp google-services.json android/app/google-services.json
 
           python3 - <<'PY'
           from pathlib import Path
