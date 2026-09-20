@@ -115,7 +115,6 @@ class _WorkersPageState extends State<WorkersPage> {
 
                 if (!mounted) return;
 
-                // Firebase save complete થતા જ dialog બંધ
                 Navigator.pop(dialogContext);
 
                 _showMessage(
@@ -130,8 +129,9 @@ class _WorkersPageState extends State<WorkersPage> {
                   saving = false;
                 });
 
+                // હવે સાચો Firebase error દેખાશે
                 _showMessage(
-                  'Databaseમાં Save કરવામાં ભૂલ થઈ',
+                  'Firebase Error: $e',
                 );
               }
             }
@@ -258,7 +258,7 @@ class _WorkersPageState extends State<WorkersPage> {
                 });
 
                 _showMessage(
-                  'Delete કરવામાં ભૂલ થઈ',
+                  'Delete Error: $e',
                 );
               }
             }
@@ -307,7 +307,7 @@ class _WorkersPageState extends State<WorkersPage> {
       ..showSnackBar(
         SnackBar(
           content: Text(message),
-          duration: const Duration(seconds: 2),
+          duration: const Duration(seconds: 5),
         ),
       );
   }
@@ -339,9 +339,11 @@ class _WorkersPageState extends State<WorkersPage> {
         stream: _workersStream,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return const Center(
+            return Center(
               child: Text(
-                'કારીગરનો ડેટા લાવવામાં ભૂલ થઈ',
+                'કારીગરનો ડેટા લાવવામાં ભૂલ થઈ\n\n'
+                '${snapshot.error}',
+                textAlign: TextAlign.center,
               ),
             );
           }
